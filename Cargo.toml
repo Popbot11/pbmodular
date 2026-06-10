@@ -1,0 +1,44 @@
+[package]
+name = "pbmodular"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+nice-plug = "0.1"
+
+
+# Reduce wgpu log spam
+log = { version = "0.4", features = [
+    "max_level_debug",
+    "release_max_level_info",
+] }
+tracing = { version = "0.1", features = [
+    "max_level_info",
+    "release_max_level_info",
+] }
+egui = "0.34.3"
+nice-plug-egui = "0.1.5"
+rtrb = "0.3.4"
+triple_buffer = "9.0.0"
+
+
+
+[lib]
+crate-type = ["cdylib"]
+
+# Enable a small amount of optimization in the dev profile.
+[profile.dev]
+opt-level = 1
+
+# Enable more optimization in the release profile at the cost of compile time.
+[profile.release]
+codegen-units = 1
+lto = "thin"
+# (optional) helps reduce binary size
+strip = "symbols"
+
+[profile.profiling]
+inherits = "release"
+debug = true
+strip = "none"
+
