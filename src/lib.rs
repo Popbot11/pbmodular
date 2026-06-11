@@ -3,7 +3,8 @@ use nice_plug::prelude::*;
 use nice_plug_egui::{EguiState, create_egui_editor, resizable_window::ResizableWindow, widgets};
 use std::sync::Arc;
 
-mod modules;
+mod dspmodules;
+mod nrtmodules;
 
 const MIN_WINDOW_WIDTH: u32 = 300;
 const MIN_WINDOW_HEIGHT: u32 = 240;
@@ -16,8 +17,8 @@ const PEAK_METER_DECAY_MS: f64 = 150.0;
 const GUI_TO_AUDIO_MSG_CHANNEL_CAPACITY: usize = 512;
 const AUDIO_TO_GUI_MSG_CHANNEL_CAPACITY: usize = 128;
 
-pub struct Gain {
-    params: Arc<GainParams>,
+pub struct PBModular {
+    params: Arc<PBModularParams>,
 
     /// Needed to normalize the peak meter's response based on the sample rate.
     peak_meter_decay_weight: f32,
@@ -46,10 +47,12 @@ pub struct Gain {
 
     /// Temporarily hold on to the initial GUI state until the editor is first opened.
     initial_gui_state: Option<GuiState>,
+
+    
 }
 
 #[derive(Params)]
-pub struct GainParams {
+pub struct PBModularParams {
     /// The editor state, saved together with the parameter state so the custom scaling can be
     /// restored.
     #[persist = "editor-state"]
@@ -63,16 +66,18 @@ pub struct GainParams {
     pub some_int: IntParam,
 }
 
-impl Default for Gain {
+impl Default for PBModular {
     fn default() -> Self {
+        
+        
         let (to_audio_tx, from_gui_rx) = rtrb::RingBuffer::new(GUI_TO_AUDIO_MSG_CHANNEL_CAPACITY);
         let (to_gui_tx, from_audio_rx) = rtrb::RingBuffer::new(AUDIO_TO_GUI_MSG_CHANNEL_CAPACITY);
 
         let (triple_buffer_input, triple_buffer_output) =
             triple_buffer::triple_buffer(&TripleBufferState::default());
-
+        
         Self {
-            params: Arc::new(GainParams::default()),
+            params: Arc::new(PBModularParams::default()),
 
             peak_meter_decay_weight: 1.0,
             peak_meter: Arc::new(AtomicF32::new(util::MINUS_INFINITY_DB)),
@@ -95,11 +100,13 @@ impl Default for Gain {
                 triple_buffer_state: triple_buffer_input,
                 next_value: 0,
             }),
+
+
         }
     }
 }
 
-impl Default for GainParams {
+impl Default for PBModularParams {
     fn default() -> Self {
         Self {
             editor_state: EguiState::from_size(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT),
@@ -192,7 +199,7 @@ pub struct TripleBufferState {
     click_button: bool,
 }
 
-impl Plugin for Gain {
+impl Plugin for PBModular {
     const NAME: &'static str = "PBMODULAR (prototype)";
     const VENDOR: &'static str = "SUPERPLUGINS";
     const URL: &'static str = "https://popbot.work/";
@@ -453,9 +460,9 @@ impl Plugin for Gain {
     }
 }
 
-impl ClapPlugin for Gain {
+impl ClapPlugin for PBModular {
     const CLAP_ID: &'static str = "com.moist-plugins-gmbh-egui.nice-plug-gain-egui";
-    const CLAP_DESCRIPTION: Option<&'static str> = Some("A smoothed gain parameter example plugin");
+    const CLAP_DESCRIPTION: Option<&'static str> = Some("a prototype for my modular plugin");
     const CLAP_MANUAL_URL: Option<&'static str> = Some(Self::URL);
     const CLAP_SUPPORT_URL: Option<&'static str> = None;
     const CLAP_FEATURES: &'static [ClapFeature] = &[
@@ -466,11 +473,11 @@ impl ClapPlugin for Gain {
     ];
 }
 
-impl Vst3Plugin for Gain {
+impl Vst3Plugin for PBModular {
     const VST3_CLASS_ID: [u8; 16] = *b"GainGuiYeahBoyyy";
     const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] =
         &[Vst3SubCategory::Fx, Vst3SubCategory::Tools];
 }
 
-nice_export_clap!(Gain);
-nice_export_vst3!(Gain);
+nice_export_clap!(PBModular);
+nice_export_vst3!(PBModular);
