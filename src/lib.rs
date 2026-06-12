@@ -3,8 +3,8 @@ use nice_plug::prelude::*;
 use nice_plug_egui::{EguiState, create_egui_editor, resizable_window::ResizableWindow, widgets};
 use std::sync::Arc;
 
-mod dspmodules;
-mod nrtmodules;
+pub mod dspmodules;
+pub mod nrtmodules;
 
 const MIN_WINDOW_WIDTH: u32 = 300;
 const MIN_WINDOW_HEIGHT: u32 = 240;

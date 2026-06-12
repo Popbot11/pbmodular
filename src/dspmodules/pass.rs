@@ -1,9 +1,9 @@
 use crate::dspmodules::dspmodule::{DSPModule, Signal};
 
-pub struct pass {
 
-}
-impl DSPModule for pass {
+/// simple example of how dsp modules that don't need to keep track of a state will normally have zero fields.  
+pub struct Pass {}
+impl DSPModule for Pass {
     fn initalize(&mut self) {
         
     }
