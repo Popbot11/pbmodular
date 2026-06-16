@@ -8,6 +8,8 @@ pub struct SampleDelay {
 }
 impl DSPModule for SampleDelay{
     fn process(&mut self, signal: Signal<f32>) -> Signal<f32> {
+        // let result = &self.s1;
+        // self.s1 = signal;
         let result = mem::replace(&mut self.s1, signal);
         result
     }

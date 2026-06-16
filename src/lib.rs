@@ -3,6 +3,8 @@ use nice_plug::prelude::*;
 use nice_plug_egui::{EguiState, create_egui_editor, resizable_window::ResizableWindow, widgets};
 use std::sync::Arc;
 
+use crate::dspmodules::{dspmodule::DSPModule, root::{self, Root}};
+
 pub mod dspmodules;
 pub mod nrtmodules;
 
@@ -36,6 +38,9 @@ pub struct PBModular {
     /// Used to demonstrate how to pass heap-allocated data from the GUI to the audio thread.
     heap_data_example: Vec<f32>,
 
+    /// 
+    dspgraph: Box<dyn DSPModule>,
+
     /// State that is synced between the GUI and the audio thread using a triple buffer.
     /// This can be used as an alternative to the message channel approach. Note, the roles of which
     /// thread has the input and which has the output can be reversed.
@@ -47,8 +52,6 @@ pub struct PBModular {
 
     /// Temporarily hold on to the initial GUI state until the editor is first opened.
     initial_gui_state: Option<GuiState>,
-
-    
 }
 
 #[derive(Params)]
@@ -88,6 +91,8 @@ impl Default for PBModular {
                 msg_sent: false,
             },
             heap_data_example: Vec::new(),
+
+            dspgraph: Box::new(Root::new()),
 
             triple_buffer_state: triple_buffer_output,
 
@@ -385,6 +390,7 @@ impl Plugin for PBModular {
             match msg {
                 GuiToAudioMsg::MessageA => {
                     nice_dbg!("Got MessageA from GUI");
+                    // panic!();
                 }
 
                 GuiToAudioMsg::MessageWithHeapData(mut heap_data) => {
@@ -433,8 +439,10 @@ impl Plugin for PBModular {
             for sample in channel_samples {
 
 
-                *sample = (*sample * gain) + click;
-                amplitude += *sample;
+                // *sample = (*sample * gain) + click;
+                // amplitude += *sample;
+
+                *sample = self.dspgraph.process((*sample).into()).unwrap();
 
 
             }
@@ -458,6 +466,23 @@ impl Plugin for PBModular {
 
         ProcessStatus::Normal
     }
+    
+    const MIDI_INPUT: MidiConfig = MidiConfig::None;
+    
+    const MIDI_OUTPUT: MidiConfig = MidiConfig::None;
+    
+    const HARD_REALTIME_ONLY: bool = false;
+    
+    fn task_executor(&mut self) -> TaskExecutor<Self> {
+        // In the default implementation we can simply ignore the value
+        Box::new(|_| ())
+    }
+    
+    fn filter_state(state: &mut PluginState) {}
+    
+    fn reset(&mut self) {}
+    
+    fn deactivate(&mut self) {}
 }
 
 impl ClapPlugin for PBModular {

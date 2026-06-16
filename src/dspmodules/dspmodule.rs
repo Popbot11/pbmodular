@@ -1,4 +1,4 @@
-pub trait DSPModule {
+pub trait DSPModule: Send + Sync {
     fn process(&mut self, signal: Signal<f32>) -> Signal<f32>;
     fn initalize(&mut self);
     fn reset(&mut self);
@@ -23,11 +23,18 @@ impl<T> Signal<T> {
             }
         }
     }
+
     pub fn unwrap_multi(self) -> Vec<T> {
         match self {
             Signal::Single(v) => vec![v],
             Signal::Multi(v) => v,
         }
+    }
+}
+
+impl<T> From<T> for Signal<T> {
+    fn from(value: T) -> Self {
+        Signal::Single(value)
     }
 }
 
