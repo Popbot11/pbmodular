@@ -12,7 +12,7 @@ use crate::dspmodules::dspmodule::DSPModule;
 /// details on how the particular modal filter UI is rendered, and information about controllable parameters. 
 pub trait NRTModule {
     fn build_dsp(&self) -> Box<dyn DSPModule>;
-    fn build_editor(&self) -> Option<Box<dyn Editor>>;
+    // fn build_editor(&self) -> Option<Box<dyn Editor>>;
 
     fn automate(&self);
 }

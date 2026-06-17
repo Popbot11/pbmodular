@@ -6,6 +6,11 @@ use std::mem;
 pub struct SampleDelay {
     s1: Signal<f32>
 }
+impl SampleDelay {
+    pub const fn new() -> Self {SampleDelay{s1:Signal::Single(0.0)}}
+    pub fn new_boxxed() -> Box<Self> {Box::new(SampleDelay::new())}
+    pub fn from(&mut self, input: Box<dyn DSPModule>) {}
+}
 impl DSPModule for SampleDelay{
     fn process(&mut self, signal: Signal<f32>) -> Signal<f32> {
         // let result = &self.s1;

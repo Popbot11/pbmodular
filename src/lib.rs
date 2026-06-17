@@ -212,6 +212,8 @@ impl Plugin for PBModular {
 
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
+    
+
     const AUDIO_IO_LAYOUTS: &'static [AudioIOLayout] = &[
         AudioIOLayout {
             main_input_channels: NonZeroU32::new(2),
@@ -443,6 +445,8 @@ impl Plugin for PBModular {
                 // amplitude += *sample;
 
                 *sample = self.dspgraph.process((*sample).into()).unwrap();
+
+                
 
 
             }
