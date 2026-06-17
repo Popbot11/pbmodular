@@ -4,24 +4,26 @@ use std::mem;
 /// 
 /// accepts Single, outputs Single 
 pub struct SampleDelay {
-    s1: Signal<f32>
+    input: Box<dyn DSPModule>,
+    
+    s1: Signal<f32>,
 }
 impl SampleDelay {
-    pub const fn new() -> Self {SampleDelay{s1:Signal::Single(0.0)}}
-    pub fn new_boxxed() -> Box<Self> {Box::new(SampleDelay::new())}
-    pub fn from(&mut self, input: Box<dyn DSPModule>) {}
+    pub const fn new(input: Box<dyn DSPModule>) -> Self {
+        Self{
+            input,
+            s1: Signal::Single(0.0)
+        }
+    }
+    pub fn new_boxxed(input: Box<dyn DSPModule>) -> Box<Self> {
+        Box::new(SampleDelay::new(input))
+    }
 }
 impl DSPModule for SampleDelay{
-    fn process(&mut self, signal: Signal<f32>) -> Signal<f32> {
-        // let result = &self.s1;
+    fn process(&mut self) -> Signal<f32> {
+        let signal = self.input.process();
         // self.s1 = signal;
         let result = mem::replace(&mut self.s1, signal);
         result
-    }
-    fn initalize(&mut self) {
-
-    }
-    fn reset(&mut self) {
-
     }
 }

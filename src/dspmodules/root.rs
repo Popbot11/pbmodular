@@ -3,20 +3,17 @@ use crate::dspmodules::dspmodule::{DSPModule, Signal};
 
 /// doesn't implement anything yet, placeholder :)
 pub struct Root {
-
+    signal: Box<dyn DSPModule>
 }
 impl Root {
-    pub const fn new() -> Self {Root{}}
+    pub const fn new(signal: Box<dyn DSPModule>) -> Self {Root{
+        signal: signal
+    }}
     // pub fn propigate_from() -> Box<dyn DSPModule> {}
 }
 impl DSPModule for Root {
-    fn initalize(&mut self) {
-        
-    }
-    fn reset(&mut self) {
-        
-    }
-    fn process(&mut self, signal: Signal<f32>) -> Signal<f32> {
+    fn process(&mut self) -> Signal<f32> {
+        let signal = self.signal.process();
         signal
     }
 }

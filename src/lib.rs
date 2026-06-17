@@ -3,7 +3,8 @@ use nice_plug::prelude::*;
 use nice_plug_egui::{EguiState, create_egui_editor, resizable_window::ResizableWindow, widgets};
 use std::sync::Arc;
 
-use crate::dspmodules::{dspmodule::DSPModule, root::{self, Root}};
+use crate::nrtmodules::{nrtmodule::NRTModule, test::{self, NRTTest}};
+use crate::dspmodules::dspmodule::DSPModule;
 
 pub mod dspmodules;
 pub mod nrtmodules;
@@ -92,7 +93,7 @@ impl Default for PBModular {
             },
             heap_data_example: Vec::new(),
 
-            dspgraph: Box::new(Root::new()),
+            dspgraph: NRTTest::new().build_dsp(),
 
             triple_buffer_state: triple_buffer_output,
 
@@ -444,7 +445,7 @@ impl Plugin for PBModular {
                 // *sample = (*sample * gain) + click;
                 // amplitude += *sample;
 
-                *sample = self.dspgraph.process((*sample).into()).unwrap();
+                *sample = self.dspgraph.process().unwrap();
 
                 
 

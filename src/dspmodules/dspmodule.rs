@@ -1,7 +1,5 @@
 pub trait DSPModule: Send + Sync {
-    fn process(&mut self, signal: Signal<f32>) -> Signal<f32>;
-    fn initalize(&mut self);
-    fn reset(&mut self);
+    fn process(&mut self) -> Signal<f32>;
 }
 
 /// this is what contains all dsp signals accross the dsp graph. A signal can either be a singular value, or a vector of values. 

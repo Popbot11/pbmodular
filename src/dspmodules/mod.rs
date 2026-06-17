@@ -2,5 +2,6 @@ pub mod dspmodule;
 
 pub mod gain;
 pub mod sampledelay;
-pub mod pass;
+// pub mod pass;
 pub mod root;
+pub mod number;

@@ -1,19 +1,26 @@
-use crate::dspmodules::dspmodule::DSPModule;
-
+use crate::dspmodules::dspmodule::{DSPModule, Signal};
 pub struct Gain {
-    gain: f32,
+    input_a: Box<dyn DSPModule>,
+    input_b: Box<dyn DSPModule>,
 }
+impl Gain {
+    pub const fn new(input_a: Box<dyn DSPModule>, input_b: Box<dyn DSPModule>) -> Self {
+        Self{
+            input_a: input_a,
+            input_b: input_b
+        }
+    }
+    pub fn new_boxxed(input_a: Box<dyn DSPModule>, input_b: Box<dyn DSPModule>) -> Box<Self> {
+        Box::new(Gain::new(input_a, input_b))
+    }
+}
+impl DSPModule for Gain {
+    fn process(&mut self) -> Signal<f32> {
+        let input_a = self.input_a.process().unwrap();
+        let input_b = self.input_b.process().unwrap();
 
-// impl DSPModule for Gain {
-//     fn initalize(&mut self) {
-//         self.gain = 0.0;
-//     }
-
-//     fn process(&mut self, sigs: Vec<f32>) -> f32 {
-//         sigs[0] * self.gain
-//     }
-
-//     fn reset(&mut self) {
-//         self.gain = 0.0;
-//     }
-// }
+        let result = Signal::Single(input_a * input_b);
+        
+        result
+    }
+}
