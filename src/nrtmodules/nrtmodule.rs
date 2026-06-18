@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use nice_plug::editor::Editor;
 
 use crate::dspmodules::dspmodule::DSPModule;
@@ -10,7 +12,7 @@ use crate::dspmodules::dspmodule::DSPModule;
 /// 
 /// for example, a modal filter nrtmodule would contain instructions on how to build a modal filter out of dspmodules, 
 /// details on how the particular modal filter UI is rendered, and information about controllable parameters. 
-pub trait NRTModule {
+pub trait NRTModule: Debug {
     fn build_dsp(&self) -> Box<dyn DSPModule>;
     // fn build_editor(&self) -> Option<Box<dyn Editor>>;
 

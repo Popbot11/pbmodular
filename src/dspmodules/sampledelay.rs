@@ -9,7 +9,7 @@ pub struct SampleDelay {
     s1: Signal<f32>,
 }
 impl SampleDelay {
-    pub const fn new(input: Box<dyn DSPModule>) -> Self {
+    pub fn new(input: Box<dyn DSPModule>) -> Self {
         Self{
             input,
             s1: Signal::Single(0.0)

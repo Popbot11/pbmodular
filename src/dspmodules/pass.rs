@@ -1,10 +1,19 @@
 use crate::dspmodules::dspmodule::{DSPModule, Signal};
 
 
-/// simple example of how dsp modules that don't need to keep track of a state will normally have zero fields.  
-pub struct Pass {}
+/// doesn't implement anything yet, placeholder :)
+pub struct Pass {
+    signal: Box<dyn DSPModule>
+}
+impl Pass {
+    pub fn new(signal: Box<dyn DSPModule>) -> Self {Pass{
+        signal: signal
+    }}
+    // pub fn propigate_from() -> Box<dyn DSPModule> {}
+}
 impl DSPModule for Pass {
-    fn process(&mut self, signal: Signal<f32>) -> Signal<f32> {
+    fn process(&mut self) -> Signal<f32> {
+        let signal = self.signal.process();
         signal
     }
 }

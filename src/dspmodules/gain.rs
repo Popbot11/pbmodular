@@ -4,7 +4,7 @@ pub struct Gain {
     input_b: Box<dyn DSPModule>,
 }
 impl Gain {
-    pub const fn new(input_a: Box<dyn DSPModule>, input_b: Box<dyn DSPModule>) -> Self {
+    pub fn new(input_a: Box<dyn DSPModule>, input_b: Box<dyn DSPModule>) -> Self {
         Self{
             input_a: input_a,
             input_b: input_b

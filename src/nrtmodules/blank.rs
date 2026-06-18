@@ -1,25 +1,21 @@
-
 use crate::dspmodules::{self, gain, number, pass, sampledelay};
 use crate::nrtmodules::nrtmodule::NRTModule;
 use crate::dspmodules::dspmodule::DSPModule;
 
 #[derive(Debug)]
-pub struct NRTTest {
+pub struct Blank {
     
 }
-impl NRTTest {
+impl Blank {
     pub const fn new() -> Self {
         Self {  }
     }
 }
 
-impl NRTModule for NRTTest {
+impl NRTModule for Blank {
     fn build_dsp(&self) -> Box<dyn DSPModule> {
 
-        gain::Gain::new_boxxed(
-            number::Number::new_boxxed(2.0), 
-            number::Number::new_boxxed(0.5)
-        )
+        number::Number::new_boxxed(0.0) 
 
     }
 

@@ -3,7 +3,7 @@ use nice_plug::prelude::*;
 use nice_plug_egui::{EguiState, create_egui_editor, resizable_window::ResizableWindow, widgets};
 use std::sync::Arc;
 
-use crate::nrtmodules::{nrtmodule::NRTModule, test::{self, NRTTest}};
+use crate::nrtmodules::{blank::Blank, nrtmodule::NRTModule, test::{self, NRTTest}, test2::NRTTest2};
 use crate::dspmodules::dspmodule::DSPModule;
 
 pub mod dspmodules;
@@ -41,6 +41,7 @@ pub struct PBModular {
 
     /// 
     dspgraph: Box<dyn DSPModule>,
+
 
     /// State that is synced between the GUI and the audio thread using a triple buffer.
     /// This can be used as an alternative to the message channel approach. Note, the roles of which
@@ -93,7 +94,8 @@ impl Default for PBModular {
             },
             heap_data_example: Vec::new(),
 
-            dspgraph: NRTTest::new().build_dsp(),
+            dspgraph: Blank::new().build_dsp(),
+
 
             triple_buffer_state: triple_buffer_output,
 
@@ -182,6 +184,7 @@ pub struct AudioMsgChannel {
 pub enum GuiToAudioMsg {
     MessageA,
     MessageWithHeapData(Vec<f32>),
+    RebuildDSP(Box<dyn NRTModule + Send>)
 }
 #[derive(Debug)]
 pub enum AudioToGuiMsg {
@@ -329,36 +332,52 @@ impl Plugin for PBModular {
                                 }
 
                                 // Demonstrate mutating synced triple buffer state.
-                                if ui.button("mutate synced state").clicked() {
-                                    gui_state.next_value += 1;
-                                    // Note, `triple_buffer_state.input_buffer_mut()` will not work for syncing state
-                                    // this way. You must always completely overwrite the state with new data.
-                                    gui_state.triple_buffer_state.write(TripleBufferState {
-                                        value_a: false,
-                                        value_b: gui_state.next_value,
-                                        some_data: Vec::new(),
-                                        click_button: false,
-                                    });
-                                }
+                                // if ui.button("mutate synced state").clicked() {
+                                //     gui_state.next_value += 1;
+                                //     // Note, `triple_buffer_state.input_buffer_mut()` will not work for syncing state
+                                //     // this way. You must always completely overwrite the state with new data.
+                                //     gui_state.triple_buffer_state.write(TripleBufferState {
+                                //         value_a: false,
+                                //         value_b: gui_state.next_value,
+                                //         some_data: Vec::new(),
+                                //         click_button: false,
+                                //     });
+                                // }
 
-                                if ui.button("synced state click").clicked() {
+                                // if ui.button("synced state click").clicked() {
 
-                                    gui_state.triple_buffer_state.write(TripleBufferState {
-                                        value_a: false,
-                                        value_b: gui_state.next_value,
-                                        some_data: Vec::new(),
-                                        click_button: true,
-                                    });
+                                //     gui_state.triple_buffer_state.write(TripleBufferState {
+                                //         value_a: false,
+                                //         value_b: gui_state.next_value,
+                                //         some_data: Vec::new(),
+                                //         click_button: true,
+                                //     });
 
-                                    nice_log!("click!!");
-                                } else {
-                                    gui_state.triple_buffer_state.write(TripleBufferState {
-                                        value_a: false,
-                                        value_b: gui_state.next_value,
-                                        some_data: Vec::new(),
-                                        click_button: false,
-                                    });
-                                }
+                                //     nice_log!("click!!");
+                                // } else {
+                                //     gui_state.triple_buffer_state.write(TripleBufferState {
+                                //         value_a: false,
+                                //         value_b: gui_state.next_value,
+                                //         some_data: Vec::new(),
+                                //         click_button: false,
+                                //     });
+                                // }
+
+                                egui::Grid::new("button_row").show(ui, |ui| {
+                                    if ui.button("test (+1 DC)").clicked() && let Err(e) = gui_state
+                                        .msg_channel
+                                        .to_audio_tx
+                                        .push(GuiToAudioMsg::RebuildDSP(Box::new(NRTTest::new()))) {
+                                        nice_log!("replaced dsp graph with test1 module");
+                                    }
+
+                                    if ui.button("test2 (-1 DC)").clicked() && let Err(e) = gui_state
+                                        .msg_channel
+                                        .to_audio_tx
+                                        .push(GuiToAudioMsg::RebuildDSP(Box::new(NRTTest2::new()))) {
+                                        nice_log!("replaced dsp graph with test2 module");
+                                    }
+                                });
                             });
                     });
             },
@@ -411,6 +430,10 @@ impl Plugin for PBModular {
                     {
                         nice_error!("Failed to send message to GUI thread: {}", e);
                     }
+                }
+
+                GuiToAudioMsg::RebuildDSP(module) => {
+                    self.dspgraph = module.build_dsp();
                 }
             }
         }

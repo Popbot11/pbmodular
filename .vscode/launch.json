@@ -10,7 +10,17 @@
             "stopAtEntry": false,
             "cwd": "${workspaceRoot}",
             "environment": [],
-            "externalConsole": true
+            "console": true
+        },
+        {
+            "name": "(Windows) Attach to DAW",
+            "type": "cppvsdbg",
+            "request": "attach",
+            "processId": "${command:pickProcess}",
+            "stopAtEntry": false,
+            "justMyCode": false,
+            "cwd": "${workspaceRoot}",
+            "symbolSearchPath": "${workspaceRoot}/target/debug"
         },
         {
             "name": "(OSX) Launch",
