@@ -4,3 +4,4 @@ pub mod gain;
 pub mod sampledelay;
 pub mod pass;
 pub mod number;
+pub mod input;

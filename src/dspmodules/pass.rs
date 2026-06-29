@@ -16,4 +16,7 @@ impl DSPModule for Pass {
         let signal = self.signal.process();
         signal
     }
+    fn process_signal(&mut self, signal: Signal<f32>) -> Signal<f32> {
+        todo!()
+    }
 }

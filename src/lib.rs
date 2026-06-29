@@ -3,7 +3,7 @@ use nice_plug::prelude::*;
 use nice_plug_egui::{EguiState, create_egui_editor, resizable_window::ResizableWindow, widgets};
 use std::sync::Arc;
 
-use crate::nrtmodules::{blank::Blank, nrtmodule::NRTModule, test::{self, NRTTest}, test2::NRTTest2};
+use crate::{dspmodules::dspmodule::Signal, nrtmodules::{blank::Blank, nrtmodule::NRTModule, test::{self, NRTTest}, test2::NRTTest2, testinput::NRTTestInput}};
 use crate::dspmodules::dspmodule::DSPModule;
 
 pub mod dspmodules;
@@ -41,6 +41,7 @@ pub struct PBModular {
 
     /// 
     dspgraph: Box<dyn DSPModule>,
+
 
 
     /// State that is synced between the GUI and the audio thread using a triple buffer.
@@ -108,6 +109,8 @@ impl Default for PBModular {
                 triple_buffer_state: triple_buffer_input,
                 next_value: 0,
             }),
+
+
 
 
         }
@@ -377,6 +380,12 @@ impl Plugin for PBModular {
                                         .push(GuiToAudioMsg::RebuildDSP(Box::new(NRTTest2::new()))) {
                                         nice_log!("replaced dsp graph with test2 module");
                                     }
+                                    if ui.button("testinput").clicked() && let Err(e) = gui_state
+                                        .msg_channel
+                                        .to_audio_tx
+                                        .push(GuiToAudioMsg::RebuildDSP(Box::new(NRTTestInput::new()))) {
+                                        nice_log!("replaced dsp graph with testinput module");
+                                    }
                                 });
                             });
                     });
@@ -413,6 +422,8 @@ impl Plugin for PBModular {
                 GuiToAudioMsg::MessageA => {
                     nice_dbg!("Got MessageA from GUI");
                     // panic!();
+
+                    // TODO: add "stringifiation" for nrt modules so i can do debug logging for the 
                 }
 
                 GuiToAudioMsg::MessageWithHeapData(mut heap_data) => {
@@ -457,6 +468,12 @@ impl Plugin for PBModular {
 
         let click = match &state.click_button {true => 1.0, false => 0.0};
 
+        // ideas for how to pull this bullshit off:
+        //     - have a store of buffers initalized with the plugin state thats written to directly in the process loop, and require a reference to the buffer store be passed in as an argument 
+        //     - have the `Signal` type be able to store a reference to an external buffer  
+        //     - have a .into_dsp() method on the signal type that just returns a dspmodule object 
+        //     - 
+
         for channel_samples in buffer.iter_samples() {
             let mut amplitude = 0.0;
             let num_samples = channel_samples.len();
@@ -464,14 +481,9 @@ impl Plugin for PBModular {
             let gain = self.params.gain.smoothed.next();
             for sample in channel_samples {
 
-
-                // *sample = (*sample * gain) + click;
-                // amplitude += *sample;
-
-                *sample = self.dspgraph.process().unwrap();
-
-                
-
+                *sample = self.dspgraph.process_signal(
+                    Signal::Single(*sample)
+                ).unwrap();
 
             }
 

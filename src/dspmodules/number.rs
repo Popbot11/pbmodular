@@ -17,4 +17,7 @@ impl DSPModule for Number {
     fn process(&mut self) -> Signal<f32> {
         Signal::Single(self.value)
     }
+    fn process_signal(&mut self, signal: Signal<f32>) -> Signal<f32> {
+        self.process()
+    }
 }

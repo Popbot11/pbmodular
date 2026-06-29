@@ -10,9 +10,12 @@ impl Gain {
             input_b: input_b
         }
     }
+
     pub fn new_boxxed(input_a: Box<dyn DSPModule>, input_b: Box<dyn DSPModule>) -> Box<Self> {
         Box::new(Gain::new(input_a, input_b))
     }
+
+
 }
 impl DSPModule for Gain {
     fn process(&mut self) -> Signal<f32> {
@@ -22,5 +25,11 @@ impl DSPModule for Gain {
         let result = Signal::Single(input_a * input_b);
         
         result
+    }
+
+    fn process_signal(&mut self, signal: Signal<f32>) -> Signal<f32> {
+        // TODO: THIS IS JUST TO SEE HOW SHIT WORKS. EVENTUALLY ACTUALLY MAKE THIS WORK. 
+        Signal::Single(0.0)
+
     }
 }
