@@ -22,4 +22,8 @@ impl DSPModule for Input {
     fn process_signal(&mut self, signal: Signal<f32>) -> Signal<f32> {
         signal
     }
+
+    fn dbg_log(&mut self) -> String {
+        format!("INPUT")
+    }
 }

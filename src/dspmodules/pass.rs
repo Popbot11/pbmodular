@@ -17,6 +17,10 @@ impl DSPModule for Pass {
         signal
     }
     fn process_signal(&mut self, signal: Signal<f32>) -> Signal<f32> {
-        todo!()
+        self.process()
+    }
+
+    fn dbg_log(&mut self) -> String {
+        format!("PASS [{}]", self.signal.dbg_log())
     }
 }

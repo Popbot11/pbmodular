@@ -20,4 +20,8 @@ impl DSPModule for Number {
     fn process_signal(&mut self, signal: Signal<f32>) -> Signal<f32> {
         self.process()
     }
+
+    fn dbg_log(&mut self) -> String {
+       format!("NUMBER: {}", self.value)
+    }
 }

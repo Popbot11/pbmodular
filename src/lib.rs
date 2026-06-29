@@ -371,20 +371,20 @@ impl Plugin for PBModular {
                                         .msg_channel
                                         .to_audio_tx
                                         .push(GuiToAudioMsg::RebuildDSP(Box::new(NRTTest::new()))) {
-                                        nice_log!("replaced dsp graph with test1 module");
+                                        nice_dbg!("replaced dsp graph with test1 module");
                                     }
 
                                     if ui.button("test2 (-1 DC)").clicked() && let Err(e) = gui_state
                                         .msg_channel
                                         .to_audio_tx
                                         .push(GuiToAudioMsg::RebuildDSP(Box::new(NRTTest2::new()))) {
-                                        nice_log!("replaced dsp graph with test2 module");
+                                        nice_dbg!("replaced dsp graph with test2 module");
                                     }
                                     if ui.button("testinput").clicked() && let Err(e) = gui_state
                                         .msg_channel
                                         .to_audio_tx
                                         .push(GuiToAudioMsg::RebuildDSP(Box::new(NRTTestInput::new()))) {
-                                        nice_log!("replaced dsp graph with testinput module");
+                                        nice_dbg!("replaced dsp graph with testinput module");
                                     }
                                 });
                             });
@@ -445,6 +445,8 @@ impl Plugin for PBModular {
 
                 GuiToAudioMsg::RebuildDSP(module) => {
                     self.dspgraph = module.build_dsp();
+
+                    nice_dbg!(self.dspgraph.dbg_log());
                 }
             }
         }

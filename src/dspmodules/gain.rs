@@ -29,7 +29,17 @@ impl DSPModule for Gain {
 
     fn process_signal(&mut self, signal: Signal<f32>) -> Signal<f32> {
         // TODO: THIS IS JUST TO SEE HOW SHIT WORKS. EVENTUALLY ACTUALLY MAKE THIS WORK. 
-        Signal::Single(0.0)
+        self.process()
 
+    }
+
+    fn dbg_log(&mut self) -> String {
+
+        // "GAIN MODULE"
+        format!(
+            "GAIN [{}, {}]",
+            self.input_a.dbg_log(),
+            self.input_b.dbg_log()
+        )
     }
 }
