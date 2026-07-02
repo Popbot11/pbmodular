@@ -1,5 +1,5 @@
 use egui::{Margin, Vec2};
-use nice_plug::prelude::*;
+use nice_plug::{prelude::*, wrapper::vst3::vst3::Steinberg::Vst::SampleRate};
 use nice_plug_egui::{EguiState, create_egui_editor, resizable_window::ResizableWindow, widgets};
 use std::sync::Arc;
 
@@ -95,7 +95,7 @@ impl Default for PBModular {
             },
             heap_data_example: Vec::new(),
 
-            dspgraph: Blank::new().build_dsp(),
+            dspgraph: Box::new(Blank::new()).build_dsp(),
 
 
             triple_buffer_state: triple_buffer_output,
@@ -109,9 +109,6 @@ impl Default for PBModular {
                 triple_buffer_state: triple_buffer_input,
                 next_value: 0,
             }),
-
-
-
 
         }
     }
@@ -183,7 +180,7 @@ pub struct AudioMsgChannel {
     msg_sent: bool,
 }
 
-#[derive(Debug)]
+
 pub enum GuiToAudioMsg {
     MessageA,
     MessageWithHeapData(Vec<f32>),
@@ -380,6 +377,7 @@ impl Plugin for PBModular {
                                         .push(GuiToAudioMsg::RebuildDSP(Box::new(NRTTest2::new()))) {
                                         nice_dbg!("replaced dsp graph with test2 module");
                                     }
+                                    
                                     if ui.button("testinput").clicked() && let Err(e) = gui_state
                                         .msg_channel
                                         .to_audio_tx
@@ -426,6 +424,8 @@ impl Plugin for PBModular {
                     // TODO: add "stringifiation" for nrt modules so i can do debug logging for the 
                 }
 
+                
+
                 GuiToAudioMsg::MessageWithHeapData(mut heap_data) => {
                     nice_dbg!("Got MessageWithHeapData from GUI");
 
@@ -444,7 +444,7 @@ impl Plugin for PBModular {
                 }
 
                 GuiToAudioMsg::RebuildDSP(module) => {
-                    self.dspgraph = module.build_dsp();
+                    self.dspgraph = Box::new(module).build_dsp();
 
                     nice_dbg!(self.dspgraph.dbg_log());
                 }

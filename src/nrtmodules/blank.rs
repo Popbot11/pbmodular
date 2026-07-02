@@ -1,6 +1,6 @@
-use crate::dspmodules::{self, gain, number, pass, sampledelay};
+use crate::dspmodules::{self, gain, value, pass, sampledelay};
 use crate::nrtmodules::nrtmodule::NRTModule;
-use crate::dspmodules::dspmodule::DSPModule;
+use crate::dspmodules::dspmodule::{DSPModule, Signal};
 
 #[derive(Debug)]
 pub struct Blank {
@@ -13,13 +13,10 @@ impl Blank {
 }
 
 impl NRTModule for Blank {
-    fn build_dsp(&self) -> Box<dyn DSPModule> {
+    fn build_dsp(self: Box<Self>) -> Box<dyn DSPModule> {
 
-        number::Number::new_boxxed(0.0) 
+        value::Value::new_boxxed(Signal::Single(0.0)) 
 
     }
 
-    fn automate(&self) {
-        todo!()
-    }
 }

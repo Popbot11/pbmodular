@@ -1,5 +1,5 @@
 
-use crate::dspmodules::{self, gain, input, number, pass, sampledelay};
+use crate::dspmodules::{self, gain, input, value, pass, sampledelay};
 use crate::nrtmodules::nrtmodule::NRTModule;
 use crate::dspmodules::dspmodule::DSPModule;
 
@@ -9,18 +9,14 @@ pub struct NRTTestInput {
 }
 impl NRTTestInput {
     pub const fn new() -> Self {
-        Self {  }
+        Self {  } 
     }
 }
 
 impl NRTModule for NRTTestInput {
-    fn build_dsp(&self) -> Box<dyn DSPModule> {
+    fn build_dsp(self: Box<Self>) -> Box<dyn DSPModule> {
 
         input::Input::new_boxxed()
 
-    }
-
-    fn automate(&self) {
-        todo!()
     }
 }

@@ -1,4 +1,6 @@
 pub trait DSPModule: Send + Sync {
+   
+
     fn process(&mut self) -> Signal<f32>;
     fn process_signal(&mut self, signal: Signal<f32>) -> Signal<f32>;
 
@@ -11,6 +13,7 @@ pub trait DSPModule: Send + Sync {
 /// the exact usage of a signal depends entirely on the particular module. 
 /// 
 /// TODO: have `Single(&mut Buffer<T>)` and `Multi(Vec<$mut Buffer<T>>)` so that I can do more routing stuff.
+#[derive(Debug, Clone)]
 pub enum Signal<T> {
     None(()),
     Single(T),
