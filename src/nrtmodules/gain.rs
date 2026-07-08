@@ -4,9 +4,9 @@ use std::sync::Arc;
 use crate::dspmodules::{self, gain, value, pass, sampledelay};
 use crate::nrtmodules::nrtmodule::{NRTConnector, NRTModule};
 use crate::dspmodules::dspmodule::DSPModule;
-use crate::ui_command::UICommand;
+
 use nice_plug::prelude::Editor;
-use egui::Ui;
+
 
 
 pub struct Gain {
@@ -29,8 +29,6 @@ impl NRTModule for Gain {
 
     }
     
-    fn build_ui(&self) -> Vec<UICommand>{
-        todo!();
-    }
+
 
 }

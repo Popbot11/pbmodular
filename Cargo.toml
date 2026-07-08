@@ -16,10 +16,10 @@ tracing = { version = "0.1", features = [
     "max_level_info",
     "release_max_level_info",
 ] }
-egui = "0.34.3"
-nice-plug-egui = "0.1.5"
 rtrb = "0.3.4"
 triple_buffer = "9.0.0"
+iced = "0.14.0"
+nice-plug-iced = "0.1.3"
 
 
 

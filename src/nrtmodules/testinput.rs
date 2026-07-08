@@ -2,8 +2,8 @@
 use crate::dspmodules::{self, gain, input, value, pass, sampledelay};
 use crate::nrtmodules::nrtmodule::NRTModule;
 use crate::dspmodules::dspmodule::DSPModule;
-use egui::Ui;
-use crate::ui_command::UICommand;
+
+
 
 use nice_plug::prelude::Editor;
 
@@ -24,7 +24,5 @@ impl NRTModule for NRTTestInput {
 
     }
     
-    fn build_ui(&self) -> Vec<UICommand>{
-        todo!();
-    }
+
 }

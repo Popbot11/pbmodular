@@ -1,9 +1,9 @@
 use std::fmt::Debug;
 
-use egui::Ui;
+
 use nice_plug::editor::Editor;
 
-use crate::{dspmodules::{dspmodule::{DSPModule, Signal}, input, value}, ui_command::UICommand};
+use crate::{dspmodules::{dspmodule::{DSPModule, Signal}, input, value}};
 
 /// a nrtmodule, or non-realtime module is the much bulkier sibling to the dspmodule. 
 /// structs that implement nrtmodule are representations of everything that the user will interface with, 
@@ -15,7 +15,7 @@ use crate::{dspmodules::{dspmodule::{DSPModule, Signal}, input, value}, ui_comma
 /// details on how the particular modal filter UI is rendered, and information about controllable parameters. 
 pub trait NRTModule: Send + Sync  {
     fn build_dsp(self: Box<Self>) -> Box<dyn DSPModule>;
-    fn build_ui(&self) -> Vec<UICommand>;
+    // fn build_ui(&self) -> Vec<UICommand>;
 
 }
 
