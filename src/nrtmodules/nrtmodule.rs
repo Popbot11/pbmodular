@@ -1,8 +1,9 @@
 use std::fmt::Debug;
 
+use egui::Ui;
 use nice_plug::editor::Editor;
 
-use crate::dspmodules::{dspmodule::{DSPModule, Signal}, value};
+use crate::{dspmodules::{dspmodule::{DSPModule, Signal}, input, value}, ui_command::UICommand};
 
 /// a nrtmodule, or non-realtime module is the much bulkier sibling to the dspmodule. 
 /// structs that implement nrtmodule are representations of everything that the user will interface with, 
@@ -12,9 +13,9 @@ use crate::dspmodules::{dspmodule::{DSPModule, Signal}, value};
 /// 
 /// for example, a modal filter nrtmodule would contain instructions on how to build a modal filter out of dspmodules, 
 /// details on how the particular modal filter UI is rendered, and information about controllable parameters. 
-pub trait NRTModule {
+pub trait NRTModule: Send + Sync  {
     fn build_dsp(self: Box<Self>) -> Box<dyn DSPModule>;
-    // fn build_editor(&self) -> Option<Box<dyn Editor>>;
+    fn build_ui(&self) -> Vec<UICommand>;
 
 }
 
@@ -27,22 +28,26 @@ pub enum NRTConnector {
     // Parameter(todo!()),
     // Buffer(todo!()),
 
-    /// corrosponds to an acive audio input from the plugin host. 
-    AudioInput(f32),
+    /// corrosponds to the acive audio input from the plugin host. 
+    AudioInput(),
 }
 
 impl NRTConnector {
     pub fn connect(self) -> Box<dyn DSPModule>{
         match self {
             NRTConnector::Value(signal) => {
-                value::Value::new_boxxed(signal)
+                value::Value::new_boxxed(signal) 
             },
 
             NRTConnector::Module(dspmodule) => {
                 dspmodule
             },
-            NRTConnector::AudioInput(_) => todo!(),
+            NRTConnector::AudioInput() => {
+                input::Input::new_boxxed()
+            },
         }
+
+        
     }
 }
 

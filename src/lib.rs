@@ -1,13 +1,14 @@
-use egui::{Margin, Vec2};
+use egui::{Margin, Pos2, Rect, Scene, Vec2};
 use nice_plug::{prelude::*, wrapper::vst3::vst3::Steinberg::Vst::SampleRate};
 use nice_plug_egui::{EguiState, create_egui_editor, resizable_window::ResizableWindow, widgets};
 use std::sync::Arc;
 
-use crate::{dspmodules::dspmodule::Signal, nrtmodules::{blank::Blank, nrtmodule::NRTModule, test::{self, NRTTest}, test2::NRTTest2, testinput::NRTTestInput}};
+use crate::{dspmodules::dspmodule::Signal, nrtmodules::{blank::Blank, gain::Gain, nrtmodule::{NRTConnector, NRTModule}, test::{self, NRTTest}, test2::NRTTest2, testinput::NRTTestInput}, ui_command::{UICommand, render_ui_command}};
 use crate::dspmodules::dspmodule::DSPModule;
 
 pub mod dspmodules;
 pub mod nrtmodules;
+pub mod ui_command;
 
 const MIN_WINDOW_WIDTH: u32 = 300;
 const MIN_WINDOW_HEIGHT: u32 = 240;
@@ -19,6 +20,8 @@ const PEAK_METER_DECAY_MS: f64 = 150.0;
 /// scenario for your plugin.
 const GUI_TO_AUDIO_MSG_CHANNEL_CAPACITY: usize = 512;
 const AUDIO_TO_GUI_MSG_CHANNEL_CAPACITY: usize = 128;
+
+const NUMPARAMSLOTS: usize = 4;
 
 pub struct PBModular {
     params: Arc<PBModularParams>,
@@ -39,6 +42,8 @@ pub struct PBModular {
     /// Used to demonstrate how to pass heap-allocated data from the GUI to the audio thread.
     heap_data_example: Vec<f32>,
 
+    nrtgraph: Box<dyn NRTModule>,
+
     /// 
     dspgraph: Box<dyn DSPModule>,
 
@@ -55,7 +60,15 @@ pub struct PBModular {
 
     /// Temporarily hold on to the initial GUI state until the editor is first opened.
     initial_gui_state: Option<GuiState>,
+    
 }
+
+#[derive(Params)]
+struct ParamSlot {
+    #[id = "Parameter Slot"]
+    pub paramslot: FloatParam,
+}
+
 
 #[derive(Params)]
 pub struct PBModularParams {
@@ -63,6 +76,9 @@ pub struct PBModularParams {
     /// restored.
     #[persist = "editor-state"]
     editor_state: Arc<EguiState>,
+
+    #[nested(array, group = "paramslot")]
+    pub paramslots: [ParamSlot; NUMPARAMSLOTS],
 
     #[id = "gain"]
     pub gain: FloatParam,
@@ -95,6 +111,8 @@ impl Default for PBModular {
             },
             heap_data_example: Vec::new(),
 
+            nrtgraph: Box::new(Blank::new()),
+
             dspgraph: Box::new(Blank::new()).build_dsp(),
 
 
@@ -108,7 +126,7 @@ impl Default for PBModular {
                 },
                 triple_buffer_state: triple_buffer_input,
                 next_value: 0,
-            }),
+            })
 
         }
     }
@@ -134,6 +152,16 @@ impl Default for PBModularParams {
             .with_value_to_string(formatters::v2s_f32_gain_to_db(2))
             .with_string_to_value(formatters::s2v_f32_gain_to_db()),
             some_int: IntParam::new("Something", 3, IntRange::Linear { min: 0, max: 3 }),
+
+            // create all parameter slots
+
+            paramslots: std::array::from_fn(|i| ParamSlot {
+                paramslot: FloatParam::new(
+                    format!("param {}", i + 1),
+                    0.5, 
+                    FloatRange::Linear { min: 0.0, max: 1.0 }
+                )
+            })
         }
     }
 }
@@ -208,6 +236,9 @@ pub struct TripleBufferState {
     click_button: bool,
 }
 
+
+
+
 impl Plugin for PBModular {
     const NAME: &'static str = "PBMODULAR (prototype)";
     const VENDOR: &'static str = "SUPERPLUGINS";
@@ -261,61 +292,21 @@ impl Plugin for PBModular {
                                 // This is a fancy widget that can get all the information it needs to properly
                                 // display and modify the parameter from the parametr itself
                                 // It's not yet fully implemented, as the text is missing.
-                                ui.label("Some random integer");
-                                ui.add(widgets::ParamSlider::for_param(&params.some_int, setter));
+                                
 
-                                ui.label("Gain");
-                                ui.add(widgets::ParamSlider::for_param(&params.gain, setter));
+                                // ui.label("Gain");
+                                // ui.add(widgets::ParamSlider::for_param(&params.gain, setter))
 
-                                ui.label(
-                                    "Also gain, but with a standard widget. Note that it doesn't \
-                                     properly take the parameter curve into account!",
-                                );
+                                ui.add_space(10.0);
 
-                            
-                                // This is a simple naive version of a parameter slider that's not aware of how
-                                // the parameters work
-                                let prev_value = nice_plug::util::gain_to_db(params.gain.value());
-                                let mut new_value = prev_value;
-                                let ptr_down = ui
-                                    .add(
-                                        egui::widgets::Slider::new(&mut new_value, -30.0..=30.0)
-                                            .suffix(" dB"),
-                                    )
-                                    .is_pointer_button_down_on();
-                                if !gui_state.is_dragging_slider
-                                    && (ptr_down || new_value != prev_value)
-                                {
-                                    gui_state.is_dragging_slider = true;
-                                    setter.begin_set_parameter(&params.gain);
-                                }
-                                if new_value != prev_value {
-                                    setter.set_parameter(
-                                        &params.gain,
-                                        nice_plug::util::db_to_gain(new_value),
-                                    );
-                                }
-                                if gui_state.is_dragging_slider && !ptr_down {
-                                    gui_state.is_dragging_slider = false;
-                                    setter.end_set_parameter(&params.gain);
+                                for i in 0..NUMPARAMSLOTS {
+                                    egui::Grid::new(format!("param row {}", i + 1)).show(ui, |ui| {
+
+                                        ui.label(format!("param {}", i + 1));
+                                        ui.add(widgets::ParamSlider::for_param(&params.paramslots[i].paramslot , setter));
+                                    });
                                 }
 
-                                // TODO: Add a proper custom widget instead of reusing a progress bar
-                                let peak_meter = util::gain_to_db(
-                                    peak_meter.load(std::sync::atomic::Ordering::Relaxed),
-                                );
-                                let peak_meter_text = if peak_meter > util::MINUS_INFINITY_DB {
-                                    format!("{peak_meter:.1} dBFS")
-                                } else {
-                                    String::from("-inf dBFS")
-                                };
-
-                                let peak_meter_normalized = (peak_meter + 60.0) / 60.0;
-                                ui.allocate_space(egui::Vec2::splat(2.0));
-                                ui.add(
-                                    egui::widgets::ProgressBar::new(peak_meter_normalized)
-                                        .text(peak_meter_text),
-                                );
 
                                 // Demonstrate sending a message to the audio thread.
                                 if ui.button("send message").clicked()
@@ -331,60 +322,47 @@ impl Plugin for PBModular {
                                     nice_log!("Got message from audio thread: {:?}", &msg);
                                 }
 
-                                // Demonstrate mutating synced triple buffer state.
-                                // if ui.button("mutate synced state").clicked() {
-                                //     gui_state.next_value += 1;
-                                //     // Note, `triple_buffer_state.input_buffer_mut()` will not work for syncing state
-                                //     // this way. You must always completely overwrite the state with new data.
-                                //     gui_state.triple_buffer_state.write(TripleBufferState {
-                                //         value_a: false,
-                                //         value_b: gui_state.next_value,
-                                //         some_data: Vec::new(),
-                                //         click_button: false,
-                                //     });
-                                // }
-
-                                // if ui.button("synced state click").clicked() {
-
-                                //     gui_state.triple_buffer_state.write(TripleBufferState {
-                                //         value_a: false,
-                                //         value_b: gui_state.next_value,
-                                //         some_data: Vec::new(),
-                                //         click_button: true,
-                                //     });
-
-                                //     nice_log!("click!!");
-                                // } else {
-                                //     gui_state.triple_buffer_state.write(TripleBufferState {
-                                //         value_a: false,
-                                //         value_b: gui_state.next_value,
-                                //         some_data: Vec::new(),
-                                //         click_button: false,
-                                //     });
-                                // }
 
                                 egui::Grid::new("button_row").show(ui, |ui| {
-                                    if ui.button("test (+1 DC)").clicked() && let Err(e) = gui_state
+                                    
+                                    
+                                    if ui.button("gain at root").clicked() && let Err(e) = gui_state
                                         .msg_channel
                                         .to_audio_tx
-                                        .push(GuiToAudioMsg::RebuildDSP(Box::new(NRTTest::new()))) {
-                                        nice_dbg!("replaced dsp graph with test1 module");
+                                        .push(GuiToAudioMsg::RebuildDSP(Box::new(
+                                            Gain::new(
+                                                NRTConnector::AudioInput(),
+                                                NRTConnector::Value(Signal::Single(1.0))
+                                            )
+                                        ))) {
+                                        nice_dbg!("replaced dsp graph with testinput module");
                                     }
 
-                                    if ui.button("test2 (-1 DC)").clicked() && let Err(e) = gui_state
-                                        .msg_channel
-                                        .to_audio_tx
-                                        .push(GuiToAudioMsg::RebuildDSP(Box::new(NRTTest2::new()))) {
-                                        nice_dbg!("replaced dsp graph with test2 module");
-                                    }
-                                    
-                                    if ui.button("testinput").clicked() && let Err(e) = gui_state
+                                    ui.label(" | ");
+
+                                    if ui.button("awesome button").clicked()  && let Err(e) = gui_state
                                         .msg_channel
                                         .to_audio_tx
                                         .push(GuiToAudioMsg::RebuildDSP(Box::new(NRTTestInput::new()))) {
-                                        nice_dbg!("replaced dsp graph with testinput module");
+                                        nice_dbg!("awesome buttton has been clicked. i repeat awesome button has been clicked. ");
                                     }
                                 });
+
+                                if ui.button("render ui").clicked() {
+                                    nice_dbg!("rendering UI"); 
+                                    // render_ui_command(ui,  self.nrtgraph.build_ui());
+                                    
+                                }
+
+                                // for cmd in self.nrtgraph.build_ui() {
+                                //     match cmd {
+                                //         UICommand::Label(text) => {ui.label(text); }
+                                //     }
+                                // }
+
+                                
+
+                                
                             });
                     });
             },
@@ -402,8 +380,6 @@ impl Plugin for PBModular {
         self.peak_meter_decay_weight = 0.25f64
             .powf((buffer_config.sample_rate as f64 * PEAK_METER_DECAY_MS / 1000.0).recip())
             as f32;
-
-        
 
         true
     }
@@ -480,7 +456,9 @@ impl Plugin for PBModular {
             let mut amplitude = 0.0;
             let num_samples = channel_samples.len();
 
-            let gain = self.params.gain.smoothed.next();
+            let gain = self.params.paramslots[0].paramslot.smoothed.next();
+
+
             for sample in channel_samples {
 
                 *sample = self.dspgraph.process_signal(
