@@ -4,6 +4,8 @@ use crate::nrtmodules::nrtmodule::NRTModule;
 use crate::dspmodules::dspmodule::DSPModule;
 
 
+use iced::Element;
+use crate::Message;
 
 use nice_plug::prelude::Editor;
 
@@ -22,6 +24,10 @@ impl NRTModule for NRTTestInput {
 
         input::Input::new_boxxed()
 
+    }
+
+    fn build_ui(&self) -> Element<'_, Message> {
+        todo!()
     }
     
 

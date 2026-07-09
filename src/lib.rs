@@ -1,13 +1,13 @@
-
-use nice_plug::{prelude::*, wrapper::vst3::vst3::Steinberg::Vst::SampleRate};
+use ::iced::widget::{row, value};
+use nice_plug::{plugin, prelude::*, wrapper::vst3::vst3::Steinberg::Vst::SampleRate};
 use nice_plug_iced::iced::{
     self, Center, PollSubNotifier, Theme,
     widget::{Column, ProgressBar, button, column, slider, text},
 };
 use nice_plug_iced::{EditorState, NiceGuiContext, WindowState, application, create_iced_editor};
-use std::sync::{Arc, atomic::Ordering};
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 
-use crate::{dspmodules::dspmodule::Signal, nrtmodules::{blank::Blank, gain::Gain, nrtmodule::{NRTConnector, NRTModule}, test::{self, NRTTest}, test2::NRTTest2, testinput::NRTTestInput}};
+use crate::{dspmodules::dspmodule::Signal, nrtmodules::{blank::Blank, gain::Gain, nrtmodule::{NRTConnector, NRTConnectorKind, NRTModule}, }};
 use crate::dspmodules::dspmodule::DSPModule;
 
 pub mod dspmodules;
@@ -102,8 +102,10 @@ pub struct PBModular {
     /// the program will update and redraw.
     notifier: PollSubNotifier,
 
-    nrtgraph: Box<dyn NRTModule>,
-    dspgraph: Box<dyn DSPModule>,    
+
+    dspgraph: Box<dyn DSPModule>, 
+    nrtgraph: Arc<dyn NRTModule>,
+    rebuild_requested: Arc<AtomicBool>,
 }
 
 impl Default for PBModular {
@@ -116,20 +118,19 @@ impl Default for PBModular {
 
             notifier: PollSubNotifier::new(),
 
-            nrtgraph: Box::new(Blank::new()),
+
 
             dspgraph: Box::new(Blank::new()).build_dsp(),
-
+            nrtgraph: Arc::new(Gain::new(
+                NRTConnector::value(Signal::Single(0.0)),
+                NRTConnector::value(Signal::Single(0.0))
+            )),
+            rebuild_requested: Arc::new(AtomicBool::new(false))
 
         }
     }
 }
 
-impl PBModular {
-    pub fn update_nrt_graph(&mut self) {
-        self.nrtgraph = Box::new(NRTTest::new());
-    }
-}
 
 impl Plugin for PBModular {
     const NAME: &'static str = "PBMODULAR (prototype)";
@@ -168,7 +169,10 @@ impl Plugin for PBModular {
             self.params.window_state.clone(),
             MyEditorState {
                 params: self.params.clone(),
+                nrtgraph: self.nrtgraph.clone(),
+
                 peak_meter: self.peak_meter.clone(),
+                rebuild_requested: self.rebuild_requested.clone()
             },
 
             self.notifier.clone(),
@@ -213,11 +217,9 @@ impl Plugin for PBModular {
         _context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
         
-        // ideas for how to pull this bullshit off:
-        //     - have a store of buffers initalized with the plugin state thats written to directly in the process loop, and require a reference to the buffer store be passed in as an argument 
-        //     - have the `Signal` type be able to store a reference to an external buffer  
-        //     - have a .into_dsp() method on the signal type that just returns a dspmodule object 
-        //     - 
+        if self.rebuild_requested.swap(false, Ordering::Relaxed) {
+            self.dspgraph = self.nrtgraph.build_dsp();
+        }
 
         for channel_samples in buffer.iter_samples() {
             let mut amplitude = 0.0;
@@ -272,23 +274,16 @@ impl Plugin for PBModular {
     fn deactivate(&mut self) {}
 }
 
-#[derive(Debug, Clone, Copy)]
-enum Message {
-    /// Sent when the application should poll parameters/meters and redraw.
-    Poll,
-    Increment,
-    Decrement,
-    GainChanged(f32),
-    SwapModule, 
-    BuildDSP,
-}
+
 
 
 struct MyEditorState {
     params: Arc<PBModularParams>,
-    peak_meter: Arc<AtomicF32>,
+    nrtgraph: Arc<dyn NRTModule>,
 
-    
+    peak_meter: Arc<AtomicF32>,
+    rebuild_requested: Arc<AtomicBool>,
+
 }
 
 
@@ -305,6 +300,18 @@ struct MyGui {
     value: i64,
     peak_meter_db: f32,
    
+}
+
+#[derive(Clone)]
+enum Message {
+    /// Sent when the application should poll parameters/meters and redraw.
+    Poll,
+    Increment,
+    Decrement,
+    GainChanged(f32),
+    BuildDSP,
+    ReplaceWithValue(Arc<NRTConnector>)
+    
 }
 
 impl MyGui {
@@ -325,6 +332,8 @@ impl MyGui {
     pub fn update(&mut self, message: Message) {
         let setter = self.nice_ctx.param_setter();
         let params = &self.editor_state.params;
+        let nrtmodules = &self.editor_state.nrtgraph;
+
 
         match message {
             Message::Poll => {
@@ -344,13 +353,14 @@ impl MyGui {
                 setter.set_parameter_normalized(&params.gain, value);
                 setter.end_set_parameter(&params.gain);
             }
-
-            Message::SwapModule => {
-                // update_nrt_graph();
+          
+            Message::BuildDSP => {
+                self.editor_state.rebuild_requested.store(true, Ordering::Relaxed);
             }
 
-            Message::BuildDSP => {
-                
+            Message::ReplaceWithValue(connector) => {
+                connector.replace_with_value(Signal::Single(1.0));
+                self.editor_state.rebuild_requested.store(true, Ordering::Relaxed);
             }
 
             
@@ -360,32 +370,42 @@ impl MyGui {
     pub fn view(&self) -> Column<'_, Message> {
         let params = &self.editor_state.params;
 
+        nice_dbg!("AAGAUGURGHRGHHHHH");
         column![
-            button("Increment").on_press(Message::Increment),
-            text(self.value).size(30),
-            button("Decrement").on_press(Message::Decrement),
-            // TODO: Add generic slider widget
-            slider(
-                0.0..=1.0,
-                params.gain.modulated_normalized_value(),
-                Message::GainChanged
-            )
-            .step(0.001f32),
-            text(
-                params
-                    .gain
-                    .normalized_value_to_string(params.gain.modulated_normalized_value(), true)
-            ),
-            ProgressBar::new(-80.0..=0.0, self.peak_meter_db),
-
-            button("swap nrt module"), // TODO: ON PRESS
-            button("build dsp from nrt")
-
-
+            button("rebuild dsp").on_press(Message::BuildDSP),
+            self.editor_state.nrtgraph.build_ui()
         ]
-        .padding(20)
-        .spacing(12.0)
-        .align_x(Center)
+        
+        // column![
+        //     // button("Increment").on_press(Message::Increment),
+        //     // text(self.value).size(30),
+        //     // button("Decrement").on_press(Message::Decrement),
+        //     // // TODO: Add generic slider widget
+        //     // slider(
+        //     //     0.0..=1.0,
+        //     //     params.gain.modulated_normalized_value(),
+        //     //     Message::GainChanged
+        //     // )
+        //     // .step(0.001f32),
+        //     // text(
+        //     //     params
+        //     //         .gain
+        //     //         .normalized_value_to_string(params.gain.modulated_normalized_value(), true)
+        //     // ),
+        //     // ProgressBar::new(-80.0..=0.0, self.peak_meter_db),
+
+        //     // button("RenderNRTGraph").on_press(Message::RenderNRTGraph), // TODO: ON PRESS
+
+            
+
+        //     // column![].into()
+
+            
+
+        // ]
+        // .padding(20)
+        // .spacing(12.0)
+        // .align_x(Center)
     }
 }
 

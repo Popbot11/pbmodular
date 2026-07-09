@@ -2,7 +2,8 @@
 use crate::dspmodules::{self, gain, value, pass, sampledelay};
 use crate::nrtmodules::nrtmodule::NRTModule;
 use crate::dspmodules::dspmodule::{DSPModule, Signal};
-
+use iced::Element;
+use crate::Message;
 use nice_plug::prelude::Editor;
 
 
@@ -29,6 +30,8 @@ impl NRTModule for NRTTest {
         )
 
     }
-
+    fn build_ui(&self) -> Element<'_, Message> {
+        todo!()
+    }
 
 }
