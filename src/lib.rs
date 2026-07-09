@@ -15,7 +15,7 @@ pub mod nrtmodules;
 
 
 const WINDOW_WIDTH: u32 = 300;
-const WINDOW_HEIGHT: u32 = 240;
+const WINDOW_HEIGHT: u32 = 800;
 
 /// The time it takes for the peak meter to decay by 12 dB after switching to complete silence.
 const PEAK_METER_DECAY_MS: f64 = 150.0;
@@ -23,41 +23,11 @@ const PEAK_METER_DECAY_MS: f64 = 150.0;
 
 
 const NUMPARAMSLOTS: usize = 4;
-
-pub struct PBModular {
-    params: Arc<PBModularParams>,
-
-    /// Needed to normalize the peak meter's response based on the sample rate.
-    peak_meter_decay_weight: f32,
-    /// The current data for the peak meter. This is stored as an [`Arc`] so we can share it between
-    /// the GUI and the audio processing parts. If you have more state to share, then it's a good
-    /// idea to put all of that in a struct behind a single `Arc`.
-    ///
-    /// This is stored as voltage gain.
-    peak_meter: Arc<AtomicF32>,
-
-    /// An atomic flag used to notify the program when it should poll for new updates
-    /// and redraw (i.e. as a result of the host updating parameters or the audio thread
-    /// updating the state of meters). This flag is polled every frame right before
-    /// drawing. If the flag is set then the [`poll_events`] subscription will be called, and
-    /// the program will update and redraw.
-    notifier: PollSubNotifier,
-
-    nrtgraph: Box<dyn NRTModule>,
-
-    /// 
-    dspgraph: Box<dyn DSPModule>,
-
-
-    
-}
-
 #[derive(Params)]
 struct ParamSlot {
     #[id = "Parameter Slot"]
     pub paramslot: FloatParam,
 }
-
 
 #[derive(Params)]
 pub struct PBModularParams {
@@ -75,28 +45,6 @@ pub struct PBModularParams {
     // TODO: Remove this parameter when we're done implementing the widgets
     #[id = "foobar"]
     pub some_int: IntParam,
-}
-
-impl Default for PBModular {
-    fn default() -> Self {
-        
-
-        
-        Self {
-            params: Arc::new(PBModularParams::default()),
-
-            peak_meter_decay_weight: 1.0,
-            peak_meter: Arc::new(AtomicF32::new(util::MINUS_INFINITY_DB)),
-
-            notifier: PollSubNotifier::new(),
-
-            nrtgraph: Box::new(Blank::new()),
-
-            dspgraph: Box::new(Blank::new()).build_dsp(),
-
-
-        }
-    }
 }
 
 impl Default for PBModularParams {
@@ -135,6 +83,53 @@ impl Default for PBModularParams {
 
 
 
+pub struct PBModular {
+    params: Arc<PBModularParams>,
+
+    /// Needed to normalize the peak meter's response based on the sample rate.
+    peak_meter_decay_weight: f32,
+    /// The current data for the peak meter. This is stored as an [`Arc`] so we can share it between
+    /// the GUI and the audio processing parts. If you have more state to share, then it's a good
+    /// idea to put all of that in a struct behind a single `Arc`.
+    ///
+    /// This is stored as voltage gain.
+    peak_meter: Arc<AtomicF32>,
+
+    /// An atomic flag used to notify the program when it should poll for new updates
+    /// and redraw (i.e. as a result of the host updating parameters or the audio thread
+    /// updating the state of meters). This flag is polled every frame right before
+    /// drawing. If the flag is set then the [`poll_events`] subscription will be called, and
+    /// the program will update and redraw.
+    notifier: PollSubNotifier,
+
+    nrtgraph: Box<dyn NRTModule>,
+    dspgraph: Box<dyn DSPModule>,    
+}
+
+impl Default for PBModular {
+    fn default() -> Self {
+        Self {
+            params: Arc::new(PBModularParams::default()),
+
+            peak_meter_decay_weight: 1.0,
+            peak_meter: Arc::new(AtomicF32::new(util::MINUS_INFINITY_DB)),
+
+            notifier: PollSubNotifier::new(),
+
+            nrtgraph: Box::new(Blank::new()),
+
+            dspgraph: Box::new(Blank::new()).build_dsp(),
+
+
+        }
+    }
+}
+
+impl PBModular {
+    pub fn update_nrt_graph(&mut self) {
+        self.nrtgraph = Box::new(NRTTest::new());
+    }
+}
 
 impl Plugin for PBModular {
     const NAME: &'static str = "PBMODULAR (prototype)";
@@ -187,6 +182,7 @@ impl Plugin for PBModular {
                     MyGui::view,
                 )
                 .theme(MyGui::theme)
+
                 // Subscribe to the poller which detects when the application should poll
                 // parameters/meters and redraw.
                 .subscription(|_| iced::poll_events().map(|_| Message::Poll))
@@ -283,12 +279,16 @@ enum Message {
     Increment,
     Decrement,
     GainChanged(f32),
+    SwapModule, 
+    BuildDSP,
 }
 
 
 struct MyEditorState {
     params: Arc<PBModularParams>,
     peak_meter: Arc<AtomicF32>,
+
+    
 }
 
 
@@ -304,6 +304,7 @@ struct MyGui {
 
     value: i64,
     peak_meter_db: f32,
+   
 }
 
 impl MyGui {
@@ -313,6 +314,7 @@ impl MyGui {
             nice_ctx,
             value: 0,
             peak_meter_db: nice_plug::util::gain_to_db(0.0),
+            
         }
     }
 
@@ -342,6 +344,16 @@ impl MyGui {
                 setter.set_parameter_normalized(&params.gain, value);
                 setter.end_set_parameter(&params.gain);
             }
+
+            Message::SwapModule => {
+                // update_nrt_graph();
+            }
+
+            Message::BuildDSP => {
+                
+            }
+
+            
         }
     }
 
@@ -365,6 +377,11 @@ impl MyGui {
                     .normalized_value_to_string(params.gain.modulated_normalized_value(), true)
             ),
             ProgressBar::new(-80.0..=0.0, self.peak_meter_db),
+
+            button("swap nrt module"), // TODO: ON PRESS
+            button("build dsp from nrt")
+
+
         ]
         .padding(20)
         .spacing(12.0)
