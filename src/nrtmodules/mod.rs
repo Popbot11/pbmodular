@@ -1,3 +1,7 @@
+use std::sync::{Arc, Mutex};
+
+use crate::{dspmodules::dspmodule::Signal, nrtmodules::{blank::Blank, gain::Gain, nrtmodule::{NRTConnector, NRTConnectorKind, NRTModule}}};
+
 pub mod nrtmodule;
 
 // pub mod test;
@@ -7,4 +11,54 @@ pub mod nrtmodule;
 
 pub mod blank;
 pub mod gain;
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NRTModuleType {
+    Blank,
+    Gain
+}
+
+const NRTMODULE_TYPES: [NRTModuleType; 2] = [
+    NRTModuleType::Blank,
+    NRTModuleType::Gain,
+];
+
+impl std::fmt::Display for NRTModuleType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Blank => "Blank",
+            Self::Gain => "Gain",
+        })
+    }
+}
+
+
+impl NRTModuleType {
+    fn as_connector(&self) -> NRTConnector{
+        match self {
+
+            NRTModuleType::Blank => {
+                NRTConnector { 
+                    inner: Arc::new(Mutex::new(
+                        NRTConnectorKind::Module(Box::new(Blank::new()))
+                    )) 
+                }
+            },
+
+            NRTModuleType::Gain => {
+                NRTConnector {
+                    inner: Arc::new(Mutex::new(
+                        NRTConnectorKind::Module(Box::new(Gain::new(
+                            NRTConnector { inner: Arc::new(Mutex::new(NRTConnectorKind::Value(Signal::Single(0.0)))) },
+                            NRTConnector { inner: Arc::new(Mutex::new(NRTConnectorKind::Value(Signal::Single(0.0)))) }
+                        )))
+                    ))
+                }
+            },
+
+        }
+    }
+}
+
 

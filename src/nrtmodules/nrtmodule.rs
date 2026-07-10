@@ -1,11 +1,11 @@
 use std::{fmt::Debug, sync::{Arc, Mutex}};
 
 
-use iced::{Element, Renderer, Theme, wgpu::Label, widget::{Column, button, column, text}};
+use iced::{Element, Renderer, Theme, wgpu::Label, widget::{Column, button, column, pick_list, text}};
 use nice_plug::{editor::Editor, nice_dbg};
 use nice_plug_iced::iced::{core::Widget, program::graphics::color};
 
-use crate::{Message, dspmodules::{dspmodule::{DSPModule, Signal}, input, value}, nrtmodules::nrtmodule};
+use crate::{Message, dspmodules::{dspmodule::{DSPModule, Signal}, input, value}, nrtmodules::{NRTMODULE_TYPES, NRTModuleType::{self}, gain::Gain}};
 
 /// a nrtmodule, or non-realtime module is the much bulkier sibling to the dspmodule. 
 /// structs that implement nrtmodule are representations of everything that the user will interface with, 
@@ -20,6 +20,7 @@ pub trait NRTModule: Send + Sync  {
     fn build_ui(&self) -> Column<'_, Message, Theme, Renderer>;
     // fn replace_with(&self, repalcement: Box<dyn NRTModule>);
 }
+
 
 
 #[derive(Clone)]
@@ -42,22 +43,36 @@ pub enum NRTConnectorKind {
 }
 
 impl NRTConnector {
+    
+
     pub fn value(signal: Signal<f32>) -> NRTConnector {
         NRTConnector {
             inner: Arc::new(Mutex::new(NRTConnectorKind::Value(signal))),
         }
     }
 
-    pub fn module(module: Box<dyn NRTModule>) {
-        todo!()
+    pub fn module(module: Box<dyn NRTModule>) -> NRTConnector {
+        NRTConnector {
+            inner: Arc::new(Mutex::new(NRTConnectorKind::Module(module)))
+        }
     }
     //etc
 
     pub fn replace_with_value(&self, signal: Signal<f32>) {
         let mut inner = self.inner.lock().unwrap();
         *inner = NRTConnectorKind::Value(signal);
+    }
 
+    pub fn replace_with_module(&self, module_type: NRTModuleType) {
+        let mut inner = self.inner.lock().unwrap();
 
+        // TODO: INSTEAD TAKE THE MODULE TYPE ENUM AND IMPLEMENT IT SO THAT IT 
+        // JUST AUTOMATICALLY RETURNS DEFAULTS FOR ALL THE MODULES INSTEAD OF THIS. 
+        // this is justy a test case so that i can also add gain modules. but like in general this should be able to work for all modules with a bit more code. 
+        *inner = NRTConnectorKind::Module(Box::new(Gain::new(
+            NRTConnector { inner: Arc::new(Mutex::new(NRTConnectorKind::Value(Signal::Single(0.0)))) },
+            NRTConnector { inner: Arc::new(Mutex::new(NRTConnectorKind::Value(Signal::Single(0.0)))) }
+        )));
     }
 
     pub fn connect(&self) -> Box<dyn DSPModule> {
@@ -87,9 +102,16 @@ impl NRTConnector {
             }
         };
 
+        let selected_module: NRTModuleType = NRTModuleType::Blank;
+
         column![
             "-- CONNECTOR:",
-            button("replace with value").on_press_with(move || Message::ReplaceWithValue(Arc::new(connector.clone()))),
+            pick_list(
+                NRTMODULE_TYPES,
+                Some(selected_module),
+                move |module| Message::ReplaceConnector(Arc::new(module.as_connector())),
+            ).placeholder("replace with module..."),
+            button("replace with value").on_press_with(move || Message::ReplaceConnector(Arc::new(connector.clone()))),
             body.padding(10.0)
         ]
     }
@@ -112,5 +134,5 @@ impl NRTConnectorKind {
     }
 }
 
-// 
+//
 

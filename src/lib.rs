@@ -310,7 +310,7 @@ enum Message {
     Decrement,
     GainChanged(f32),
     BuildDSP,
-    ReplaceWithValue(Arc<NRTConnector>)
+    ReplaceConnector(Arc<NRTConnector>)
     
 }
 
@@ -358,7 +358,7 @@ impl MyGui {
                 self.editor_state.rebuild_requested.store(true, Ordering::Relaxed);
             }
 
-            Message::ReplaceWithValue(connector) => {
+            Message::ReplaceConnector(connector) => {
                 connector.replace_with_value(Signal::Single(1.0));
                 self.editor_state.rebuild_requested.store(true, Ordering::Relaxed);
             }
