@@ -71,9 +71,7 @@ impl DSPModule for SVF_bp {
         Signal::Single(v1)
 
     }
-    fn process_signal(&mut self, signal: Signal<f32>) -> Signal<f32> {
-        todo!();
-    }
+
 
     fn dbg_log(&mut self) -> String {
         format!("SVF_bp [{}]", self.signal.dbg_log())

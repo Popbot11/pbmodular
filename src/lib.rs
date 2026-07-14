@@ -81,7 +81,15 @@ impl Default for PBModularParams {
     }
 }
 
-
+pub struct Sources {
+    input_sample: f32,
+    params: Arc<PBModularParams>
+}
+impl Clone for Sources {
+    fn clone(&self) -> Self {
+        Self { input_sample: self.input_sample, params: self.params.clone() }
+    }
+}
 
 pub struct PBModular {
     params: Arc<PBModularParams>,
@@ -222,16 +230,19 @@ impl Plugin for PBModular {
         }
 
         for channel_samples in buffer.iter_samples() {
+
             let mut amplitude = 0.0;
             let num_samples = channel_samples.len();
 
-            let gain = self.params.paramslots[0].paramslot.smoothed.next();
+            // let gain = self.params.paramslots[0].paramslot.smoothed.next();
 
 
             for sample in channel_samples {
-
-                *sample = self.dspgraph.process_signal(
-                    Signal::Single(*sample)
+                *sample = self.dspgraph.process(
+                    &Sources {
+                        input_sample: *sample,
+                        params: self.params.clone()
+                    }
                 ).unwrap();
 
             }
@@ -310,7 +321,7 @@ enum Message {
     Decrement,
     GainChanged(f32),
     BuildDSP,
-    ReplaceConnector(Arc<NRTConnector>)
+    ReplaceConnector(Arc<NRTConnector>, Arc<NRTConnectorKind>)
     
 }
 
@@ -358,8 +369,24 @@ impl MyGui {
                 self.editor_state.rebuild_requested.store(true, Ordering::Relaxed);
             }
 
-            Message::ReplaceConnector(connector) => {
-                connector.replace_with_value(Signal::Single(1.0));
+            Message::ReplaceConnector(connector, replacement) => {
+                
+                // connector.replace_with_value(Signal::Single(1.0));
+                let replacement = Arc::try_unwrap(replacement).unwrap();
+
+                match replacement {
+                    NRTConnectorKind::Module(_) => {
+                        connector.replace_with_module(replacement);
+                    }
+
+                    NRTConnectorKind::Value(value) => {
+                        connector.replace_with_value(value);
+                    }
+                    NRTConnectorKind::AudioInput() => {
+                        // TODO:
+                    }
+                }
+                
                 self.editor_state.rebuild_requested.store(true, Ordering::Relaxed);
             }
 

@@ -35,26 +35,18 @@ impl std::fmt::Display for NRTModuleType {
 
 
 impl NRTModuleType {
-    fn as_connector(&self) -> NRTConnector{
+    fn as_connector(&self) -> NRTConnectorKind{
         match self {
 
             NRTModuleType::Blank => {
-                NRTConnector { 
-                    inner: Arc::new(Mutex::new(
-                        NRTConnectorKind::Module(Box::new(Blank::new()))
-                    )) 
-                }
+                NRTConnectorKind::Module(Box::new(Blank::new()))
             },
 
             NRTModuleType::Gain => {
-                NRTConnector {
-                    inner: Arc::new(Mutex::new(
-                        NRTConnectorKind::Module(Box::new(Gain::new(
-                            NRTConnector { inner: Arc::new(Mutex::new(NRTConnectorKind::Value(Signal::Single(0.0)))) },
-                            NRTConnector { inner: Arc::new(Mutex::new(NRTConnectorKind::Value(Signal::Single(0.0)))) }
-                        )))
-                    ))
-                }
+                NRTConnectorKind::Module(Box::new(Gain::new(
+                    NRTConnector::value(Signal::Single(0.0)),
+                    NRTConnector::value(Signal::Single(0.0))
+                )))
             },
 
         }

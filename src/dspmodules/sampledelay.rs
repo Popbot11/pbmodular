@@ -26,9 +26,7 @@ impl DSPModule for SampleDelay{
         let result = mem::replace(&mut self.s1, signal);
         result
     }
-    fn process_signal(&mut self, signal: Signal<f32>) -> Signal<f32> {
-        self.process()
-    }
+
 
     fn dbg_log(&mut self) -> String {
         format!("SAMPLEDELAY [{}]", self.input.dbg_log())

@@ -1,4 +1,4 @@
-use crate::dspmodules::dspmodule::{DSPModule, Signal};
+use crate::{Sources, dspmodules::dspmodule::{DSPModule, Signal}};
 pub struct Value {
     value: Signal<f32>
 }
@@ -14,12 +14,10 @@ impl Value {
     // pub fn propigate_from() -> Box<dyn DSPModule> {}
 }
 impl DSPModule for Value {
-    fn process(&mut self) -> Signal<f32> {
+    fn process(&mut self, sources: &Sources) -> Signal<f32> {
         self.value.clone()
     }
-    fn process_signal(&mut self, signal: Signal<f32>) -> Signal<f32> {
-        self.process()
-    }
+
 
     fn dbg_log(&mut self) -> String {
        format!("NUMBER: {}", self.value.clone().unwrap())

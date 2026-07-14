@@ -1,8 +1,15 @@
+use std::{rc::Rc, sync::Arc};
+
+use crate::{PBModularParams, Sources};
+
+
 pub trait DSPModule: Send + Sync {
    
+    // TODO: instead of seperately having signal and param inputs, i need to just have a single PluginContext struct
+    // that places these and other values in an Arc<>. i dont htink it'll actually be any faster but
+    // it would make for way cleaner code. 
+    fn process(&mut self, sources: &Sources) -> Signal<f32>;
 
-    fn process(&mut self) -> Signal<f32>;
-    fn process_signal(&mut self, signal: Signal<f32>) -> Signal<f32>;
 
     fn dbg_log(&mut self) -> String;
 }

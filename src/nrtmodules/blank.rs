@@ -1,11 +1,10 @@
-use crate::dspmodules::{self, gain, value, pass, sampledelay};
+use crate::dspmodules::{self, gain, value};
 use crate::nrtmodules::nrtmodule::NRTModule;
 use crate::dspmodules::dspmodule::{DSPModule, Signal};
 
-use iced::{Element, Renderer, Theme};
-use iced::widget::{Column, button, column, row, text};
+use iced::Element;
+use iced::widget::column;
 use crate::Message;
-use nice_plug::prelude::Editor;
 
 #[derive(Debug)]
 pub struct Blank {
@@ -23,16 +22,15 @@ impl NRTModule for Blank {
         value::Value::new_boxxed(Signal::Single(0.0)) 
 
     }
-    fn build_ui(&self) -> Column<'_, Message, Theme, Renderer>{
-       
-            column![
-                // button("build dsp").on_press(Message::BuildDSP(todo!())),
-                
-
-                "AAAAAAAAAAAAAAAAAAAAAAAA"
-            ]
-        
+    fn build_ui(&self) -> Element<'_, Message> {
+        column![
+            "BLANK"
+        ]
+        .into()
     }
+
+
+
 
 
 }

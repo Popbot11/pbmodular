@@ -1,13 +1,12 @@
 
 use std::sync::Arc;
 
-use crate::dspmodules::{self, gain, value, pass, sampledelay};
+use crate::dspmodules::{self, gain, value,};
 use crate::nrtmodules::nrtmodule::{NRTConnector, NRTConnectorKind, NRTModule};
 use crate::dspmodules::dspmodule::DSPModule;
-use iced::widget::{Column, column, container};
-use iced::{Element, Renderer, Theme};
+use iced::widget::column;
+use iced::Element;
 use crate::Message;
-use nice_plug::prelude::Editor;
 
 
 
@@ -25,20 +24,22 @@ impl NRTModule for Gain {
     fn build_dsp(&self) -> Box<dyn DSPModule> {
 
         gain::Gain::new_boxxed(
-            self.input_a.connect(),
-            self.input_b.connect(),
+            self.input_a.connect_dsp(),
+            self.input_b.connect_dsp(),
         )
 
     }
     
-    fn build_ui(&self) -> Column<'_, Message, Theme, Renderer>{
+    fn build_ui(&self) -> Element<'_, Message> {
         column![
             "input a:",
             self.input_a.connect_ui(),
             "input b:",
-            self.input_b.connect_ui()
+            self.input_b.connect_ui(),
         ]
+        .into()
     }
+
 
 
 }
