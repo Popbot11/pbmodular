@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use crate::{dspmodules::dspmodule::Signal, nrtmodules::{blank::Blank, gain::Gain, nrtmodule::{NRTConnector, NRTConnectorKind, NRTModule}}};
+use crate::{dspmodules::{dspmodule::Signal, input}, nrtmodules::{blank::Blank, gain::Gain, nrtmodule::{NRTConnector, NRTConnectorKind, NRTModule}}};
 
 pub mod nrtmodule;
 
@@ -16,12 +16,14 @@ pub mod gain;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NRTModuleType {
     Blank,
-    Gain
+    Gain,
+
 }
 
 const NRTMODULE_TYPES: [NRTModuleType; 2] = [
     NRTModuleType::Blank,
     NRTModuleType::Gain,
+
 ];
 
 impl std::fmt::Display for NRTModuleType {
@@ -29,6 +31,7 @@ impl std::fmt::Display for NRTModuleType {
         f.write_str(match self {
             Self::Blank => "Blank",
             Self::Gain => "Gain",
+
         })
     }
 }
@@ -48,6 +51,8 @@ impl NRTModuleType {
                     NRTConnector::value(Signal::Single(0.0))
                 )))
             },
+
+
 
         }
     }

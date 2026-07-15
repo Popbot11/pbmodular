@@ -5,7 +5,7 @@ use iced::{Element, Renderer, Theme, wgpu::Label, widget::{Column, button, colum
 use nice_plug::{editor::Editor, nice_dbg};
 use nice_plug_iced::iced::{core::Widget, program::graphics::color};
 
-use crate::{Message, dspmodules::{dspmodule::{DSPModule, Signal}, input, value}, nrtmodules::{NRTMODULE_TYPES, NRTModuleType::{self}, gain::Gain}};
+use crate::{Message, dspmodules::{dspmodule::{DSPModule, Signal}, input, param, value}, nrtmodules::{NRTMODULE_TYPES, NRTModuleType::{self}, gain::Gain}};
 
 /// a nrtmodule, or non-realtime module is the much bulkier sibling to the dspmodule. 
 /// structs that implement nrtmodule are representations of everything that the user will interface with, 
@@ -18,9 +18,6 @@ use crate::{Message, dspmodules::{dspmodule::{DSPModule, Signal}, input, value},
 pub trait NRTModule: Send + Sync  {
     fn build_dsp(&self) -> Box<dyn DSPModule>;
     fn build_ui(&self) -> Element<'_, Message>;
-
-
-
 }
 
 
@@ -28,8 +25,6 @@ pub trait NRTModule: Send + Sync  {
 #[derive(Clone)]
 pub struct NRTConnector {
     pub inner: Arc<Mutex<NRTConnectorKind>>,
-
-
 }
 
 pub enum NRTConnectorKind {
@@ -40,10 +35,10 @@ pub enum NRTConnectorKind {
     Module(Box<dyn NRTModule>),
     
     /// corrosponds to a user editable parameter 
-    // Parameter(),
+    Parameter(usize),
 
     /// corrosponds to the acive audio input from the plugin host. 
-    AudioInput(),
+    AudioInput,
 }
 
 impl NRTConnector {
@@ -81,8 +76,9 @@ impl NRTConnector {
         let inner = self.inner.lock().unwrap();
         match &*inner {
             NRTConnectorKind::Value(signal) => value::Value::new_boxxed(signal.clone()),
-            NRTConnectorKind::AudioInput() => input::Input::new_boxxed(),
+            NRTConnectorKind::AudioInput => input::Input::new_boxxed(),
             NRTConnectorKind::Module(module) => module.build_dsp(),
+            NRTConnectorKind::Parameter(slot) => param::Param::new_boxxed(*slot),
         }
     }
 
@@ -96,12 +92,15 @@ impl NRTConnector {
             match inner {
                 NRTConnectorKind::Value(signal) => {
                     column![text(format!("---- VALUE: {}", signal.clone().as_string()))]
-                },
-                NRTConnectorKind::AudioInput() => {
+                }
+                NRTConnectorKind::AudioInput => {
                     column!["---- AUDIO INPUT"]
                 }
                 NRTConnectorKind::Module(module) => {
                     column!["---- MODULE"]
+                }
+                NRTConnectorKind::Parameter(slot) => {
+                    column!["---- PUT A SLIDER HERE!!!!"]
                 }
             }
         };
@@ -125,12 +124,17 @@ impl NRTConnector {
 
                 button("value").on_press(Message::ReplaceConnector(
                     Arc::new(self.clone()), 
-                    Arc::new(NRTConnectorKind::Value(Signal::Single(0.0)))
+                    Arc::new(NRTConnectorKind::Value(Signal::Single(1.0)))
+                )),
+
+                button("input").on_press(Message::ReplaceConnector(
+                    Arc::new(self.clone()), 
+                    Arc::new(NRTConnectorKind::AudioInput)
                 )),
 
                 button("param").on_press(Message::ReplaceConnector(
                     Arc::new(self.clone()), 
-                    Arc::new(NRTConnectorKind::Value(Signal::Single(0.0)))
+                    Arc::new(NRTConnectorKind::Parameter(0))
                 )),
             ],
             // dropdown of modules this connector can be replaced with
@@ -140,36 +144,22 @@ impl NRTConnector {
 
     pub fn as_string(&self) -> String {
         match &*(self.inner.lock().unwrap()) {
-            NRTConnectorKind::AudioInput() => format!("audio input"),
+            NRTConnectorKind::AudioInput => format!("audio input"),
             NRTConnectorKind::Value(value) => value.clone().as_string(),
             NRTConnectorKind::Module(module) => format!("module"),
+            NRTConnectorKind::Parameter(slot) => format!("param: {}", slot)
         }
     }
 }
 
-
-impl NRTConnectorKind {
-    pub fn connect(&self) -> Box<dyn DSPModule> {
-        match self {
-            NRTConnectorKind::Value(signal) => {
-                value::Value::new_boxxed(signal.clone())
-            },
-            NRTConnectorKind::Module(_nrtmodule) => {
-                value::Value::new_boxxed(Signal::Single(0.0))
-            },
-            NRTConnectorKind::AudioInput() => {
-                input::Input::new_boxxed()
-            },
-        }
-    }
-}
 
 impl std::fmt::Debug for NRTConnectorKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Value(arg0) => f.debug_tuple("Value").field(arg0).finish(),
             Self::Module(arg0) => f.debug_tuple("Module").finish(),
-            Self::AudioInput() => f.debug_tuple("AudioInput").finish(),
+            Self::AudioInput => f.debug_tuple("AudioInput").finish(),
+            Self::Parameter(slot) => f.debug_tuple("Parameter").finish()
         }
     }
 }

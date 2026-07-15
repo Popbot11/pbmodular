@@ -14,7 +14,7 @@ pub mod dspmodules;
 pub mod nrtmodules;
 
 
-const WINDOW_WIDTH: u32 = 300;
+const WINDOW_WIDTH: u32 = 500;
 const WINDOW_HEIGHT: u32 = 800;
 
 /// The time it takes for the peak meter to decay by 12 dB after switching to complete silence.
@@ -382,8 +382,11 @@ impl MyGui {
                     NRTConnectorKind::Value(value) => {
                         connector.replace_with_value(value);
                     }
-                    NRTConnectorKind::AudioInput() => {
-                        // TODO:
+                    NRTConnectorKind::AudioInput => {
+                        connector.replace_with_module(NRTConnectorKind::AudioInput);
+                    }
+                    NRTConnectorKind::Parameter(slot) => {
+                        connector.replace_with_module(NRTConnectorKind::Parameter(slot));
                     }
                 }
                 
