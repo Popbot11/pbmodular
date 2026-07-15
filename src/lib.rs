@@ -317,9 +317,9 @@ struct MyGui {
 enum Message {
     /// Sent when the application should poll parameters/meters and redraw.
     Poll,
-    Increment,
-    Decrement,
+
     GainChanged(f32),
+    ParamSlotChanged(usize, f32),
     BuildDSP,
     ReplaceConnector(Arc<NRTConnector>, Arc<NRTConnectorKind>)
     
@@ -352,17 +352,18 @@ impl MyGui {
                     self.editor_state.peak_meter.load(Ordering::Relaxed),
                 );
             }
-            Message::Increment => {
-                self.value += 1;
-            }
-            Message::Decrement => {
-                self.value -= 1;
-            }
+
             Message::GainChanged(value) => {
                 // TODO: Add generic slider widget
                 setter.begin_set_parameter(&params.gain);
                 setter.set_parameter_normalized(&params.gain, value);
                 setter.end_set_parameter(&params.gain);
+            }
+
+            Message::ParamSlotChanged(slot, value) => {
+                setter.begin_set_parameter(&params.paramslots[slot].paramslot);
+                setter.set_parameter_normalized(&params.paramslots[slot].paramslot, value);
+                setter.end_set_parameter(&params.paramslots[slot].paramslot);
             }
           
             Message::BuildDSP => {
@@ -378,7 +379,6 @@ impl MyGui {
                     NRTConnectorKind::Module(_) => {
                         connector.replace_with_module(replacement);
                     }
-
                     NRTConnectorKind::Value(value) => {
                         connector.replace_with_value(value);
                     }
@@ -402,8 +402,9 @@ impl MyGui {
 
         nice_dbg!("AAGAUGURGHRGHHHHH");
         column![
+            
             button("rebuild dsp").on_press(Message::BuildDSP),
-            self.editor_state.nrtgraph.build_ui()
+            self.editor_state.nrtgraph.build_ui(self.editor_state.params.clone())
         ]
         
         // column![

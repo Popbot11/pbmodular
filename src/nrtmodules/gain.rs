@@ -6,7 +6,7 @@ use crate::nrtmodules::nrtmodule::{NRTConnector, NRTConnectorKind, NRTModule};
 use crate::dspmodules::dspmodule::DSPModule;
 use iced::widget::column;
 use iced::Element;
-use crate::Message;
+use crate::{Message, PBModularParams};
 
 
 
@@ -30,12 +30,12 @@ impl NRTModule for Gain {
 
     }
     
-    fn build_ui(&self) -> Element<'_, Message> {
+    fn build_ui(&self, params: Arc<PBModularParams>) -> Element<'_, Message> {
         column![
             "input a:",
-            self.input_a.connect_ui(),
+            self.input_a.connect_ui(params.clone()),
             "input b:",
-            self.input_b.connect_ui(),
+            self.input_b.connect_ui(params.clone()),
         ]
         .into()
     }

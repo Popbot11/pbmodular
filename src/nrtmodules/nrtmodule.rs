@@ -1,11 +1,11 @@
 use std::{fmt::Debug, sync::{Arc, Mutex}};
 
 
-use iced::{Element, Renderer, Theme, wgpu::Label, widget::{Column, button, column, pick_list, row, text}};
+use iced::{Element, Renderer, Theme, wgpu::Label, widget::{Column, button, column, pick_list, row, slider, text}};
 use nice_plug::{editor::Editor, nice_dbg};
 use nice_plug_iced::iced::{core::Widget, program::graphics::color};
 
-use crate::{Message, dspmodules::{dspmodule::{DSPModule, Signal}, input, param, value}, nrtmodules::{NRTMODULE_TYPES, NRTModuleType::{self}, gain::Gain}};
+use crate::{Message, PBModularParams, dspmodules::{dspmodule::{DSPModule, Signal}, input, param, value}, nrtmodules::{NRTMODULE_TYPES, NRTModuleType::{self}, gain::Gain}};
 
 /// a nrtmodule, or non-realtime module is the much bulkier sibling to the dspmodule. 
 /// structs that implement nrtmodule are representations of everything that the user will interface with, 
@@ -17,7 +17,7 @@ use crate::{Message, dspmodules::{dspmodule::{DSPModule, Signal}, input, param, 
 /// details on how the particular modal filter UI is rendered, and information about controllable parameters. 
 pub trait NRTModule: Send + Sync  {
     fn build_dsp(&self) -> Box<dyn DSPModule>;
-    fn build_ui(&self) -> Element<'_, Message>;
+    fn build_ui(&self, params: Arc<PBModularParams>) -> Element<'_, Message>;
 }
 
 
@@ -83,7 +83,7 @@ impl NRTConnector {
     }
 
     /// returns GUI information about this particular connector. 
-    pub fn connect_ui(&self) -> Column<'_, Message, Theme, Renderer> {
+    pub fn connect_ui(&self, params: Arc<PBModularParams>) -> Column<'_, Message, Theme, Renderer> {
         let mut selected_module = NRTModuleType::Blank;
 
         let body =  {
@@ -100,7 +100,16 @@ impl NRTConnector {
                     column!["---- MODULE"]
                 }
                 NRTConnectorKind::Parameter(slot) => {
-                    column!["---- PUT A SLIDER HERE!!!!"]
+                    let slot_index = *slot;            // owned value
+                    let slot_index_usize = slot_index as usize;
+
+                    column![
+                        slider(
+                            0.0..=1.0,
+                            params.paramslots[slot_index_usize].paramslot.smoothed.next(),
+                            move |value| Message::ParamSlotChanged(slot_index, value),
+                        ).step(0.001f32)
+                    ]
                 }
             }
         };

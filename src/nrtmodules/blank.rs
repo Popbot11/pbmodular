@@ -1,10 +1,12 @@
+use std::sync::Arc;
+
 use crate::dspmodules::{self, gain, value};
 use crate::nrtmodules::nrtmodule::NRTModule;
 use crate::dspmodules::dspmodule::{DSPModule, Signal};
 
 use iced::Element;
 use iced::widget::column;
-use crate::Message;
+use crate::{Message, PBModular, PBModularParams};
 
 #[derive(Debug)]
 pub struct Blank {
@@ -22,7 +24,7 @@ impl NRTModule for Blank {
         value::Value::new_boxxed(Signal::Single(0.0)) 
 
     }
-    fn build_ui(&self) -> Element<'_, Message> {
+    fn build_ui(&self, params: Arc<PBModularParams>) -> Element<'_, Message> {
         column![
             "BLANK"
         ]
