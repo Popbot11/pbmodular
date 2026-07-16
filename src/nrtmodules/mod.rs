@@ -11,18 +11,21 @@ pub mod nrtmodule;
 
 pub mod blank;
 pub mod gain;
+pub mod parallel;
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NRTModuleType {
     Blank,
     Gain,
+    // Parallel
 
 }
 
 const NRTMODULE_TYPES: [NRTModuleType; 2] = [
     NRTModuleType::Blank,
     NRTModuleType::Gain,
+    // NRTModuleType::Parallel
 
 ];
 
@@ -31,6 +34,7 @@ impl std::fmt::Display for NRTModuleType {
         f.write_str(match self {
             Self::Blank => "Blank",
             Self::Gain => "Gain",
+            // Self::Parallel => "Parallel"
 
         })
     }
@@ -52,7 +56,7 @@ impl NRTModuleType {
                 )))
             },
 
-
+            // NRTModuleType::Parallel => {}
 
         }
     }

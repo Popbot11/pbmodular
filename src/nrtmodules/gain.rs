@@ -22,7 +22,7 @@ impl Gain {
 
 impl NRTModule for Gain {
     fn build_dsp(&self) -> Box<dyn DSPModule> {
-
+       
         gain::Gain::new_boxxed(
             self.input_a.connect_dsp(),
             self.input_b.connect_dsp(),

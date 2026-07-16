@@ -1,11 +1,11 @@
 use std::{fmt::Debug, sync::{Arc, Mutex}};
 
 
-use iced::{Element, Renderer, Theme, wgpu::Label, widget::{Column, button, column, pick_list, row, slider, text}};
+use iced::{Element, Renderer, Theme, wgpu::Label, widget::{Column, button, column, pick_list, row, slider, text}, Border, Color};
 use nice_plug::{editor::Editor, nice_dbg};
 use nice_plug_iced::iced::{core::Widget, program::graphics::color};
 
-use crate::{Message, PBModularParams, dspmodules::{dspmodule::{DSPModule, Signal}, input, param, value}, nrtmodules::{NRTMODULE_TYPES, NRTModuleType::{self}, gain::Gain}};
+use crate::{Message, NUMPARAMSLOTS, PBModularParams, dspmodules::{dspmodule::{DSPModule, Signal}, input, param, value}, nrtmodules::{NRTMODULE_TYPES, NRTModuleType::{self}, gain::Gain}};
 
 /// a nrtmodule, or non-realtime module is the much bulkier sibling to the dspmodule. 
 /// structs that implement nrtmodule are representations of everything that the user will interface with, 
@@ -84,7 +84,23 @@ impl NRTConnector {
 
     /// returns GUI information about this particular connector. 
     pub fn connect_ui(&self, params: Arc<PBModularParams>) -> Column<'_, Message, Theme, Renderer> {
-        let mut selected_module = NRTModuleType::Blank;
+        let selected_module = NRTModuleType::Blank;
+
+        // let selected_module = {
+        //     let inner = self.inner.lock().unwrap();
+        //     match &*inner {
+        //         NRTConnectorKind::Module(module ) => Some(*module),
+        //         _ => None,
+        //     }
+        // };
+        let paramlist: [usize; NUMPARAMSLOTS] = std::array::from_fn(|i|i);
+        let selected_param = {
+            let inner = self.inner.lock().unwrap();
+            match &*inner {
+                NRTConnectorKind::Parameter(slot) => Some(*slot),
+                _ => None,
+            }
+        };
 
         let body =  {
             let inner = &*(self.inner.lock().unwrap());
@@ -104,18 +120,20 @@ impl NRTConnector {
                     let slot_index_usize = slot_index as usize;
 
                     column![
-                        slider(
-                            0.0..=1.0,
-                            params.paramslots[slot_index_usize].paramslot.smoothed.next(),
-                            move |value| Message::ParamSlotChanged(slot_index, value),
-                        ).step(0.001f32)
+                        row![
+                            text(format!("{} ", slot_index)),
+                            slider(
+                                0.0..=1.0,
+                                params.paramslots[slot_index_usize].paramslot.smoothed.next(),
+                                move |value| Message::ParamSlotChanged(slot_index, value),
+                            ).step(0.001f32)
+                        ],
                     ]
                 }
             }
         };
 
         column![
-            "-- CONNECTOR:",
             // UI of this particular connector type
             body.padding(10.0), 
             
@@ -141,11 +159,17 @@ impl NRTConnector {
                     Arc::new(NRTConnectorKind::AudioInput)
                 )),
 
-                button("param").on_press(Message::ReplaceConnector(
-                    Arc::new(self.clone()), 
-                    Arc::new(NRTConnectorKind::Parameter(0))
-                )),
+                pick_list(
+                    paramlist,
+                    selected_param,
+                    move |index| Message::ReplaceConnector(
+                        Arc::new(self.clone()),
+                        Arc::new(NRTConnectorKind::Parameter(index)),
+                    )
+                ).placeholder("parameter"),
+
             ],
+            iced::widget::rule::horizontal(3)
             // dropdown of modules this connector can be replaced with
             
         ]

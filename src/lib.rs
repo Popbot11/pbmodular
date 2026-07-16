@@ -5,14 +5,24 @@ use nice_plug_iced::iced::{
     widget::{Column, ProgressBar, button, column, slider, text},
 };
 use nice_plug_iced::{EditorState, NiceGuiContext, WindowState, application, create_iced_editor};
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 
-use crate::{dspmodules::dspmodule::Signal, nrtmodules::{blank::Blank, gain::Gain, nrtmodule::{NRTConnector, NRTConnectorKind, NRTModule}, }};
 use crate::dspmodules::dspmodule::DSPModule;
+use crate::{
+    dspmodules::dspmodule::Signal,
+    nrtmodules::{
+        blank::{self, Blank},
+        gain::Gain,
+        nrtmodule::{NRTConnector, NRTConnectorKind, NRTModule},
+        parallel::Parallel,
+    },
+};
 
 pub mod dspmodules;
 pub mod nrtmodules;
-
 
 const WINDOW_WIDTH: u32 = 500;
 const WINDOW_HEIGHT: u32 = 800;
@@ -20,9 +30,7 @@ const WINDOW_HEIGHT: u32 = 800;
 /// The time it takes for the peak meter to decay by 12 dB after switching to complete silence.
 const PEAK_METER_DECAY_MS: f64 = 150.0;
 
-
-
-const NUMPARAMSLOTS: usize = 4;
+pub const NUMPARAMSLOTS: usize = 4;
 #[derive(Params)]
 struct ParamSlot {
     #[id = "Parameter Slot"]
@@ -69,25 +77,47 @@ impl Default for PBModularParams {
             some_int: IntParam::new("Something", 3, IntRange::Linear { min: 0, max: 3 }),
 
             // create all parameter slots
-
             paramslots: std::array::from_fn(|i| ParamSlot {
                 paramslot: FloatParam::new(
-                    format!("param {}", i + 1),
-                    0.5, 
-                    FloatRange::Linear { min: 0.0, max: 1.0 }
-                )
-            })
+                    format!("param {}", i),
+                    0.5,
+                    FloatRange::Linear { min: 0.0, max: 1.0 },
+                ),
+            }),
         }
     }
 }
 
 pub struct Sources {
     input_sample: f32,
-    params: Arc<PBModularParams>
+    params: Arc<PBModularParams>,
+
+    /// the number of currently active parallel chains in the dsp graph (specifically with working with the parallel module)
+    current_num_chains: usize,
+
+    /// the (1-based) index of the current parallel chain. this will be 1 unless there are other active parallel chains.
+    /// Currently this field has no use, but it will once I start on param remap curves and other
+    /// utilities to control the distribution of params accross multiple parallel chains.
+    current_chain: usize,
+}
+impl Sources {
+    fn with_chains(&self, num_chains: usize, current: usize) -> Self {
+        Self {
+            input_sample: self.input_sample,
+            params: self.params.clone(),
+            current_num_chains: num_chains,
+            current_chain: current,
+        }
+    }
 }
 impl Clone for Sources {
     fn clone(&self) -> Self {
-        Self { input_sample: self.input_sample, params: self.params.clone() }
+        Self {
+            input_sample: self.input_sample,
+            params: self.params.clone(),
+            current_num_chains: self.current_num_chains,
+            current_chain: self.current_chain,
+        }
     }
 }
 
@@ -110,8 +140,7 @@ pub struct PBModular {
     /// the program will update and redraw.
     notifier: PollSubNotifier,
 
-
-    dspgraph: Box<dyn DSPModule>, 
+    dspgraph: Box<dyn DSPModule>,
     nrtgraph: Arc<dyn NRTModule>,
     rebuild_requested: Arc<AtomicBool>,
 }
@@ -126,19 +155,15 @@ impl Default for PBModular {
 
             notifier: PollSubNotifier::new(),
 
-
-
             dspgraph: Box::new(Blank::new()).build_dsp(),
-            nrtgraph: Arc::new(Gain::new(
-                NRTConnector::value(Signal::Single(0.0)),
-                NRTConnector::value(Signal::Single(0.0))
+            nrtgraph: Arc::new(Parallel::new(
+                NRTConnector::value(Signal::Single(0.0)), 
+                5
             )),
-            rebuild_requested: Arc::new(AtomicBool::new(false))
-
+            rebuild_requested: Arc::new(AtomicBool::new(false)),
         }
     }
 }
-
 
 impl Plugin for PBModular {
     const NAME: &'static str = "PBMODULAR (prototype)";
@@ -147,8 +172,6 @@ impl Plugin for PBModular {
     const EMAIL: &'static str = "info@example.com";
 
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
-
-    
 
     const AUDIO_IO_LAYOUTS: &'static [AudioIOLayout] = &[
         AudioIOLayout {
@@ -180,9 +203,8 @@ impl Plugin for PBModular {
                 nrtgraph: self.nrtgraph.clone(),
 
                 peak_meter: self.peak_meter.clone(),
-                rebuild_requested: self.rebuild_requested.clone()
+                rebuild_requested: self.rebuild_requested.clone(),
             },
-
             self.notifier.clone(),
             Default::default(),
             |editor_state, nice_ctx| {
@@ -194,7 +216,6 @@ impl Plugin for PBModular {
                     MyGui::view,
                 )
                 .theme(MyGui::theme)
-
                 // Subscribe to the poller which detects when the application should poll
                 // parameters/meters and redraw.
                 .subscription(|_| iced::poll_events().map(|_| Message::Poll))
@@ -224,27 +245,26 @@ impl Plugin for PBModular {
         _aux: &mut AuxiliaryBuffers,
         _context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
-        
         if self.rebuild_requested.swap(false, Ordering::Relaxed) {
             self.dspgraph = self.nrtgraph.build_dsp();
         }
 
         for channel_samples in buffer.iter_samples() {
-
             let mut amplitude = 0.0;
             let num_samples = channel_samples.len();
 
             // let gain = self.params.paramslots[0].paramslot.smoothed.next();
 
-
             for sample in channel_samples {
-                *sample = self.dspgraph.process(
-                    &Sources {
+                *sample = self
+                    .dspgraph
+                    .process(&Sources {
                         input_sample: *sample,
-                        params: self.params.clone()
-                    }
-                ).unwrap();
-
+                        params: self.params.clone(),
+                        current_num_chains: 1,
+                        current_chain: 1,
+                    })
+                    .unwrap();
             }
 
             // To save resources, a plugin can (and probably should!) only perform expensive
@@ -266,27 +286,24 @@ impl Plugin for PBModular {
 
         ProcessStatus::Normal
     }
-    
+
     const MIDI_INPUT: MidiConfig = MidiConfig::None;
-    
+
     const MIDI_OUTPUT: MidiConfig = MidiConfig::None;
-    
+
     const HARD_REALTIME_ONLY: bool = false;
-    
+
     fn task_executor(&mut self) -> TaskExecutor<Self> {
         // In the default implementation we can simply ignore the value
         Box::new(|_| ())
     }
-    
+
     fn filter_state(state: &mut PluginState) {}
-    
+
     fn reset(&mut self) {}
-    
+
     fn deactivate(&mut self) {}
 }
-
-
-
 
 struct MyEditorState {
     params: Arc<PBModularParams>,
@@ -294,9 +311,7 @@ struct MyEditorState {
 
     peak_meter: Arc<AtomicF32>,
     rebuild_requested: Arc<AtomicBool>,
-
 }
-
 
 struct MyGui {
     /// The editor state is stored inside of a wrapper which allows the
@@ -310,7 +325,6 @@ struct MyGui {
 
     value: i64,
     peak_meter_db: f32,
-   
 }
 
 #[derive(Clone)]
@@ -321,8 +335,7 @@ enum Message {
     GainChanged(f32),
     ParamSlotChanged(usize, f32),
     BuildDSP,
-    ReplaceConnector(Arc<NRTConnector>, Arc<NRTConnectorKind>)
-    
+    ReplaceConnector(Arc<NRTConnector>, Arc<NRTConnectorKind>),
 }
 
 impl MyGui {
@@ -332,7 +345,6 @@ impl MyGui {
             nice_ctx,
             value: 0,
             peak_meter_db: nice_plug::util::gain_to_db(0.0),
-            
         }
     }
 
@@ -344,7 +356,6 @@ impl MyGui {
         let setter = self.nice_ctx.param_setter();
         let params = &self.editor_state.params;
         let nrtmodules = &self.editor_state.nrtgraph;
-
 
         match message {
             Message::Poll => {
@@ -365,13 +376,14 @@ impl MyGui {
                 setter.set_parameter_normalized(&params.paramslots[slot].paramslot, value);
                 setter.end_set_parameter(&params.paramslots[slot].paramslot);
             }
-          
+
             Message::BuildDSP => {
-                self.editor_state.rebuild_requested.store(true, Ordering::Relaxed);
+                self.editor_state
+                    .rebuild_requested
+                    .store(true, Ordering::Relaxed);
             }
 
             Message::ReplaceConnector(connector, replacement) => {
-                
                 // connector.replace_with_value(Signal::Single(1.0));
                 let replacement = Arc::try_unwrap(replacement).unwrap();
 
@@ -389,24 +401,25 @@ impl MyGui {
                         connector.replace_with_module(NRTConnectorKind::Parameter(slot));
                     }
                 }
-                
-                self.editor_state.rebuild_requested.store(true, Ordering::Relaxed);
-            }
 
-            
+                self.editor_state
+                    .rebuild_requested
+                    .store(true, Ordering::Relaxed);
+            }
         }
     }
 
     pub fn view(&self) -> Column<'_, Message> {
         let params = &self.editor_state.params;
 
-        nice_dbg!("AAGAUGURGHRGHHHHH");
+        // nice_dbg!("AAGAUGURGHRGHHHHH");
         column![
-            
             button("rebuild dsp").on_press(Message::BuildDSP),
-            self.editor_state.nrtgraph.build_ui(self.editor_state.params.clone())
+            self.editor_state
+                .nrtgraph
+                .build_ui(self.editor_state.params.clone())
         ]
-        
+
         // column![
         //     // button("Increment").on_press(Message::Increment),
         //     // text(self.value).size(30),
@@ -427,11 +440,7 @@ impl MyGui {
 
         //     // button("RenderNRTGraph").on_press(Message::RenderNRTGraph), // TODO: ON PRESS
 
-            
-
         //     // column![].into()
-
-            
 
         // ]
         // .padding(20)
