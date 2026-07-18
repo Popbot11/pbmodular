@@ -1,13 +1,13 @@
 use std::{rc::Rc, sync::Arc};
 
 use crate::{PBModularParams, Sources, dspmodules::dspmodule::{DSPModule, Signal}};
-pub struct Parallel {
+pub struct MultiParallel {
     parallelized_module: Box<dyn DSPModule>,
     num_chains: usize,
 }
 
 
-impl Parallel {
+impl MultiParallel {
     pub fn new(parallelized_module: Box<dyn DSPModule>, num_chains: usize) -> Self {
         Self{
             parallelized_module: parallelized_module,
@@ -16,17 +16,19 @@ impl Parallel {
     }
 
     pub fn new_boxxed(parallelized_module: Box<dyn DSPModule>, num_chains: usize) -> Box<Self> {
-        Box::new(Parallel::new(parallelized_module, num_chains))
+        Box::new(MultiParallel::new(parallelized_module, num_chains))
     }
 
 
 }
-impl DSPModule for Parallel {
+impl DSPModule for MultiParallel {
     
     fn process(&mut self, sources: &Sources) -> Signal<f32> {
         Signal::Multi(
-            (1..self.num_chains).map(|i| 
-                self.parallelized_module.process(&sources.with_chains(self.num_chains, i)).unwrap()
+            (1..=self.num_chains).map(|i| 
+                self.parallelized_module.process(
+                    &sources.with_chains(self.num_chains, i))
+                    .unwrap()
             ).collect()
         )
     }

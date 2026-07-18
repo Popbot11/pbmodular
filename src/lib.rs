@@ -10,7 +10,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-use crate::dspmodules::dspmodule::DSPModule;
+use crate::{dspmodules::dspmodule::DSPModule, nrtmodules::modal_filter::ModalFilter};
 use crate::{
     dspmodules::dspmodule::Signal,
     nrtmodules::{
@@ -30,7 +30,7 @@ const WINDOW_HEIGHT: u32 = 800;
 /// The time it takes for the peak meter to decay by 12 dB after switching to complete silence.
 const PEAK_METER_DECAY_MS: f64 = 150.0;
 
-pub const NUMPARAMSLOTS: usize = 4;
+pub const NUMPARAMSLOTS: usize = 5;
 #[derive(Params)]
 struct ParamSlot {
     #[id = "Parameter Slot"]
@@ -89,6 +89,8 @@ impl Default for PBModularParams {
 }
 
 pub struct Sources {
+    sample_rate: f32,
+
     input_sample: f32,
     params: Arc<PBModularParams>,
 
@@ -103,6 +105,7 @@ pub struct Sources {
 impl Sources {
     fn with_chains(&self, num_chains: usize, current: usize) -> Self {
         Self {
+            sample_rate: self.sample_rate,
             input_sample: self.input_sample,
             params: self.params.clone(),
             current_num_chains: num_chains,
@@ -113,6 +116,7 @@ impl Sources {
 impl Clone for Sources {
     fn clone(&self) -> Self {
         Self {
+            sample_rate: self.sample_rate,
             input_sample: self.input_sample,
             params: self.params.clone(),
             current_num_chains: self.current_num_chains,
@@ -156,7 +160,11 @@ impl Default for PBModular {
             notifier: PollSubNotifier::new(),
 
             dspgraph: Box::new(Blank::new()).build_dsp(),
-            nrtgraph: Arc::new(Parallel::new(
+            nrtgraph: Arc::new(ModalFilter::new(
+                NRTConnector::value(Signal::Single(0.0)), 
+                NRTConnector::value(Signal::Single(0.0)), 
+                NRTConnector::value(Signal::Single(0.0)), 
+                NRTConnector::value(Signal::Single(0.0)), 
                 NRTConnector::value(Signal::Single(0.0)), 
                 5
             )),
@@ -228,7 +236,7 @@ impl Plugin for PBModular {
         &mut self,
         _audio_io_layout: &AudioIOLayout,
         buffer_config: &BufferConfig,
-        _context: &mut impl InitContext<Self>,
+        context: &mut impl InitContext<Self>,
     ) -> bool {
         // After `PEAK_METER_DECAY_MS` milliseconds of pure silence, the peak meter's value should
         // have dropped by 12 dB
@@ -243,7 +251,7 @@ impl Plugin for PBModular {
         &mut self,
         buffer: &mut Buffer,
         _aux: &mut AuxiliaryBuffers,
-        _context: &mut impl ProcessContext<Self>,
+        context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
         if self.rebuild_requested.swap(false, Ordering::Relaxed) {
             self.dspgraph = self.nrtgraph.build_dsp();
@@ -259,6 +267,7 @@ impl Plugin for PBModular {
                 *sample = self
                     .dspgraph
                     .process(&Sources {
+                        sample_rate: context.transport().sample_rate,
                         input_sample: *sample,
                         params: self.params.clone(),
                         current_num_chains: 1,

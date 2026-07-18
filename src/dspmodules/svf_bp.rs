@@ -1,14 +1,13 @@
 use std::f32::consts::PI;
 
-use crate::dspmodules::dspmodule::{DSPModule, Signal};
+use crate::{Sources, dspmodules::dspmodule::{DSPModule, Signal}};
 
 
 
 /// doesn't implement anything yet, placeholder :)
 pub struct SVF_bp {
-    samplerate: f32,
 
-    signal: Box<dyn DSPModule>,
+    input: Box<dyn DSPModule>,
     f: Box<dyn DSPModule>,
     q: Box<dyn DSPModule>,
 
@@ -17,15 +16,13 @@ pub struct SVF_bp {
 }
 impl SVF_bp {
     pub fn new(
-        signal: Box<dyn DSPModule>,
+        input: Box<dyn DSPModule>,
         f: Box<dyn DSPModule>,
         q: Box<dyn DSPModule>,
 
-        samplerate: f32
     ) -> Self {SVF_bp{
-        samplerate: samplerate,
 
-        signal: signal,
+        input: input,
         f: f,
         q: q,
 
@@ -34,25 +31,27 @@ impl SVF_bp {
     }}
 
     pub fn new_boxxed(        
-        signal: Box<dyn DSPModule>,
+        input: Box<dyn DSPModule>,
         f: Box<dyn DSPModule>,
         q: Box<dyn DSPModule>,
 
-        samplerate: f32
     ) -> Box<Self>{
-        Box::new(SVF_bp::new(signal, f,q, samplerate))
+        Box::new(SVF_bp::new(input, f,q))
     }
     
 }
 impl DSPModule for SVF_bp {
-    fn process(&mut self) -> Signal<f32> {
+    fn process(&mut self,sources: &Sources) -> Signal<f32> {
         
-        let signal = self.signal.process().unwrap();
-        let f = self.f.process().unwrap();
-        let q = self.q.process().unwrap();
+        let input = self.input.process(sources).unwrap();
+
+        // TODO: multiplying the f and q inputs because currently parameters are forcibly scaled between 0 and 1. 
+        // I need to generally be able to annotate parameter ranges in the sources object so that I don'e need to this. 
+        let f = self.f.process(sources).unwrap() * 20000.0;
+        let q = self.q.process(sources).unwrap()* 200.0;
         
         // coeffs:
-        let g = f32::tan(PI * f / self.samplerate);
+        let g = f32::tan(PI * f / sources.sample_rate);
         let k = 1.0 / q;
 
         let a1 = 1.0 / (1.0 + (g * (g + k)));
@@ -61,7 +60,7 @@ impl DSPModule for SVF_bp {
 
         // tick:
 
-        let v3 = signal - self.z_2;
+        let v3 = input - self.z_2;
         let v1 = (a1 * self.z_1) + (a2 * v3);
         let v2 = self.z_2 + (a2 * self.z_1) + (a3 * v3);
         
@@ -74,6 +73,6 @@ impl DSPModule for SVF_bp {
 
 
     fn dbg_log(&mut self) -> String {
-        format!("SVF_bp [{}]", self.signal.dbg_log())
+        format!("SVF_bp [{}]", self.input.dbg_log())
     }
 }

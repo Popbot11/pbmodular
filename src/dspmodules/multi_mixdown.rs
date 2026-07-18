@@ -1,12 +1,17 @@
-
 use core::num;
 use std::{rc::Rc, result, sync::Arc};
+
+use iced::wgpu::naga::MathFunction::Mix;
 
 use crate::{PBModularParams, Sources, dspmodules::dspmodule::{DSPModule, Signal}};
 
 // TODO: implement diferent mixdown modes that combine mc signal diferently. Currently i'm just going to do the sqrt mixdown 
 pub enum MixdownMode {
+    /// divide output by the square root of the number of chains
+    Sqrt, 
 
+    /// simply add each channel together with no other logic
+    Add,
 }
 
 pub struct MultiMixdown {
@@ -20,18 +25,28 @@ pub struct MultiMixdown {
     /// precomputed sqrt of the number of chains
     sqrt_num_chains: f32,
 
+    mixdown_mode: MixdownMode
 }
 
 impl MultiMixdown {
-    pub fn new(multi_signal: Box<dyn DSPModule>, num_chains: usize) -> Self {
+    pub fn new(multi_signal: Box<dyn DSPModule>, num_chains: usize, mixdown_mode: MixdownMode) -> Self {
         Self {
+            
             multi_signal: multi_signal,
             num_chains: num_chains,
-            sqrt_num_chains: (num_chains as f32).sqrt()
+            
+            sqrt_num_chains: match mixdown_mode {
+                MixdownMode::Sqrt => {
+                    (num_chains as f32).sqrt()
+                }
+                _ =>  0.0,
+            },
+            
+            mixdown_mode: mixdown_mode,
         }
     }
-    pub fn new_boxxed(multi_signal: Box<dyn DSPModule>, num_chains: usize) -> Box<Self>{
-        Box::new(MultiMixdown::new(multi_signal, num_chains))
+    pub fn new_boxxed(multi_signal: Box<dyn DSPModule>, num_chains: usize, mixdown_mode: MixdownMode) -> Box<Self>{
+        Box::new(MultiMixdown::new(multi_signal, num_chains, mixdown_mode))
     }
 }
 
@@ -41,14 +56,21 @@ impl DSPModule for MultiMixdown {
 
         Signal::Single(match input {
             Signal::Multi(signal) => {
-                
-                // avoid computing square root unless the actual number of channels is not the precomputer amt. 
-                let actual_num_chains = signal.len();
-                if self.num_chains != actual_num_chains {
-                    self.sqrt_num_chains = (actual_num_chains as f32).sqrt();
+                match self.mixdown_mode {
+                    MixdownMode::Add => {
+                        signal.iter().copied().sum::<f32>()
+                    },
+                    MixdownMode::Sqrt => {
+                        // avoid computing square root unless the actual number of channels is not the precomputer amt. 
+                        let actual_num_chains = signal.len();
+                        if self.num_chains != actual_num_chains {
+                            self.sqrt_num_chains = (actual_num_chains as f32).sqrt();
+                        }
+                        
+                        signal.iter().copied().sum::<f32>() / self.sqrt_num_chains
+
+                    }
                 }
-                
-                signal.iter().copied().sum::<f32>() / self.sqrt_num_chains
             }
             Signal::Single(signal) => signal,
             Signal::None(_) => 0.0,

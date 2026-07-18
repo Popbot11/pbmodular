@@ -12,6 +12,7 @@ pub mod nrtmodule;
 pub mod blank;
 pub mod gain;
 pub mod parallel;
+pub mod modal_filter;
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
