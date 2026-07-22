@@ -2,6 +2,7 @@ use core::num;
 use std::{rc::Rc, result, sync::Arc};
 
 use iced::wgpu::naga::MathFunction::Mix;
+use nice_plug::nice_dbg;
 
 use crate::{PBModularParams, Sources, dspmodules::dspmodule::{DSPModule, Signal}};
 
@@ -54,11 +55,14 @@ impl DSPModule for MultiMixdown {
     fn process(&mut self, sources: &Sources) -> Signal<f32> {
         let input = self.multi_signal.process(sources);
 
-        Signal::Single(match input {
+        // nice_dbg!(input.clone().as_string());
+        
+        Signal::Single( match input {
             Signal::Multi(signal) => {
                 match self.mixdown_mode {
                     MixdownMode::Add => {
-                        signal.iter().copied().sum::<f32>()
+                        
+                        signal.iter().sum::<f32>()
                     },
                     MixdownMode::Sqrt => {
                         // avoid computing square root unless the actual number of channels is not the precomputer amt. 
@@ -67,7 +71,7 @@ impl DSPModule for MultiMixdown {
                             self.sqrt_num_chains = (actual_num_chains as f32).sqrt();
                         }
                         
-                        signal.iter().copied().sum::<f32>() / self.sqrt_num_chains
+                        signal.iter().sum::<f32>() / self.sqrt_num_chains
 
                     }
                 }

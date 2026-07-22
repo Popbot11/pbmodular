@@ -47,7 +47,7 @@ impl DSPModule for SVF_bp {
 
         // TODO: multiplying the f and q inputs because currently parameters are forcibly scaled between 0 and 1. 
         // I need to generally be able to annotate parameter ranges in the sources object so that I don'e need to this. 
-        let f = self.f.process(sources).unwrap() * 20000.0;
+        let f = self.f.process(sources).unwrap() * 2000.0;
         let q = self.q.process(sources).unwrap()* 200.0;
         
         // coeffs:
@@ -63,7 +63,9 @@ impl DSPModule for SVF_bp {
         let v3 = input - self.z_2;
         let v1 = (a1 * self.z_1) + (a2 * v3);
         let v2 = self.z_2 + (a2 * self.z_1) + (a3 * v3);
-        
+        let i = sources.current_chain.clone();
+
+
         self.z_1 = (2.0 * v1) - self.z_1;
         self.z_2 = (2.0 * v2) - self.z_2;
 

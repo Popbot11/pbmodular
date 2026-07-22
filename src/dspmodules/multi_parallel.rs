@@ -24,13 +24,21 @@ impl MultiParallel {
 impl DSPModule for MultiParallel {
     
     fn process(&mut self, sources: &Sources) -> Signal<f32> {
-        Signal::Multi(
+
+
+        let result = Signal::Multi(
             (1..=self.num_chains).map(|i| 
+
                 self.parallelized_module.process(
-                    &sources.with_chains(self.num_chains, i))
-                    .unwrap()
+                    &sources.with_chains(self.num_chains, i)
+                ).unwrap()
             ).collect()
-        )
+        );
+        let resultstr = result.clone().as_string();
+
+        result.clone()
+
+
     }
 
 

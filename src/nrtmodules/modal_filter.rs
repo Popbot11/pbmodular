@@ -59,9 +59,10 @@ impl NRTModule for ModalFilter {
                 ),
                 self.num_chains
             ), 
+            
             self.num_chains,
 
-            MixdownMode::Sqrt
+            MixdownMode::Add
         )
         
 

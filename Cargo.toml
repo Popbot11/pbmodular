@@ -28,7 +28,8 @@ crate-type = ["cdylib"]
 
 # Enable a small amount of optimization in the dev profile.
 [profile.dev]
-opt-level = 1
+opt-level = 0
+debug = 2
 
 # Enable more optimization in the release profile at the cost of compile time.
 [profile.release]

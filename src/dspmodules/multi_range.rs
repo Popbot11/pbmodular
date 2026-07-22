@@ -34,9 +34,13 @@ impl DSPModule for MultiRange {
         // multi_range "scopes out" of the multichannel enclosure, so we need to make sure that higher modules
         // understand that there aren't other chains. 
         let out_low = self.out_low.process(&sources.with_chains(1,1)).unwrap();
-        let out_high = self.out_low.process(&sources.with_chains(1,1)).unwrap();
+        let out_high = self.out_high.process(&sources.with_chains(1,1)).unwrap();
         Signal::Single(
-            ((sources.current_chain as f32) * out_high) - out_low
+
+            (
+                ((sources.current_chain - 1) as f32) * (out_high - out_low) 
+                / ((sources.current_num_chains - 1) as f32)
+            ) + out_low
         )
     }
 
